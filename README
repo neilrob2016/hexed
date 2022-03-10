@@ -1,0 +1,12 @@
+Hexed
+-----
+This is a colour command line hex editor for MacOS and Linux. To compile
+just type "make" then "hexed -f <filename>" to edit a file. Type 'H' to
+get a list of commands and function keys.
+
+Note - this uses ANSI terminal codes directly instead of curses for coding 
+efficiency. The curses API is hideously long winded and given almost all
+virtual terminals now support ANSI there's little point in using curses.
+IMO YMMV.
+
+Neil Robertson, March 2022
