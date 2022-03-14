@@ -18,14 +18,6 @@ void resetCommand()
 
 
 
-void beep()
-{
-	write(STDOUT,"\007",1);
-}
-
-
-
-
 void version()
 {
         colprintf("~BM~FW*** HEXED ***\n\n");

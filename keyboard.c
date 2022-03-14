@@ -607,5 +607,7 @@ void setDecodeView()
 		mem_decode_view = NULL;
 	}
 	else mem_decode_view = mem_cursor;
+	decode_page = !decode_page;
+
 	drawScreen();
 }

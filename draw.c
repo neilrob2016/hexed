@@ -7,10 +7,10 @@
 void drawDecodeView();
 void drawFileInfo();
 void drawHelp();
-void drawHorizontalLine(int y);
+void drawHorizontalLines();
 
 
-void drawScreen(int full)
+void drawScreen()
 {
 	u_char *line_start;
 	u_char *mem_decode_end;
@@ -21,10 +21,9 @@ void drawScreen(int full)
 	int cnt;
 	int y;
 
-	if (full) clearScreen();
 	if (!drawBanner(ALL_BAN_LINES)) return;
+	drawHorizontalLines();
 
-	drawHorizontalLine(BAN_PANE_HEIGHT);
 	if (mem_decode_view)
 	{
 		len = (int)(mem_end - mem_decode_view + 1);
@@ -100,11 +99,7 @@ void drawScreen(int full)
 			if (++cnt == term_pane_cols)
 			{
 				putchar('\n');
-				if (++y == term_div_y)
-				{
-					drawHorizontalLine(y);
-					break;
-				}
+				if (++y == term_div_y) break;
 				cnt = 0;
 				hex = 1;
 				line_start = ptr;
@@ -485,7 +480,7 @@ void drawDecodeView()
 	if (!mem_decode_view) return;
 
 	locate(0,term_textbox_y);
-	colprintf("~BM~FWDecode position:~RS %lu",
+	colprintf("~BM~FWDecode file position:~RS %lu",
 		(u_long)(mem_decode_view - mem_start));
 	len = (int)(mem_end - mem_decode_view + 1);
 	assert(len > 1);
@@ -493,116 +488,148 @@ void drawDecodeView()
 	p1 = (u_char *)&s1;
 	p2 = (u_char *)&s2;
 
-	/* Do u16 first. We don't know if the system we're on is big endian
+	/* Do 16 bit first. We don't know if the system we're on is big endian
 	   or little endian so just call them sys and rev */
 	memcpy(p1,mem_cursor,2);
 	locate(0,term_textbox_y+1);
-	colprintf("~FGU16 sys:~RS %u\n",s1);
+	if (decode_page)
+		colprintf("~FGU16 sys:~RS %u\n",s1);
+	else
+		colprintf("~FGS16 sys:~RS %d\n",(int16_t)s1);
 
 	/* Can't use ntoh*() functions because they don't always
 	   do anything depending on the architecture */
 	s2 = s1;
 	p1[0] = p2[1];
 	p1[1] = p2[0];
-	colprintf("~FTU16 rev:~RS %u\n",s1);
+	if (decode_page)
+		colprintf("~FTU16 rev:~RS %u\n",s1);
+	else
+		colprintf("~FTS16 rev:~RS %d\n",(int16_t)s1);
 
 	if (len < 4) return;
 
 	p1 = (u_char *)&i1;
 	p2 = (u_char *)&i2;
 
-	/* U32 system byte order. */
+	/* 32 bit system byte order. */
 	memcpy(p1,mem_cursor,4);
-	colprintf("~FGU32 sys:~RS %u\n",i1);
+	if (decode_page)
+		colprintf("~FGU32 sys:~RS %u\n",i1);
+	else
+		colprintf("~FGS32 sys:~RS %d\n",(int32_t)i1);
 
-	/* U32 date system order */
-	locate(22,term_textbox_y+1);
-	t = (time_t)i1;
-	colprintf("~FGU32 date sys:~RS ",t);
-	if ((tms = gmtime(&t)))
+	if (decode_page)
 	{
-		strftime(text,sizeof(text),"%F %T UTC",tms);
-		puts(text);
+		/* U32 date system order */
+		locate(22,term_textbox_y+3);
+		t = (time_t)i1;
+		colprintf("~FGU32 date sys:~RS ",t);
+		if ((tms = gmtime(&t)))
+		{
+			strftime(text,sizeof(text),"%F %T UTC",tms);
+			puts(text);
+		}
+		else puts("<invalid>");
 	}
-	else puts("<invalid>");
 
-	/* U32 reverse order */
+	/* 32 bit reverse order */
 	locate(0,term_textbox_y+4);
 	i2 = i1;
 	for(i=0;i < 4;++i) p1[i] = p2[3-i];
-	colprintf("~FTU32 rev:~RS %u",i1);
+	if (decode_page)
+		colprintf("~FTU32 rev:~RS %u\n",i1);
+	else
+		colprintf("~FTS32 rev:~RS %d\n",(int32_t)i1);
 
-	/* U32 date reverse order */
-	locate(22,term_textbox_y+2);
-	colprintf("~FTU32 date rev:~RS ");
-	t = (time_t)i1;
-	if ((tms = gmtime(&t)))
+	if (decode_page)
 	{
-		strftime(text,sizeof(text),"%F %T UTC",tms);
-		puts(text);
+		/* U32 date reverse order */
+		locate(22,term_textbox_y+4);
+		colprintf("~FTU32 date rev:~RS ");
+		t = (time_t)i1;
+		if ((tms = gmtime(&t)))
+		{
+			strftime(text,sizeof(text),"%F %T UTC",tms);
+			puts(text);
+		}
+		else puts("<invalid>");
 	}
-	else puts("<invalid>");
 
 	if (len < 8) return;
 
-	/* U64 system */
+	/* 64 bit system */
 	p1 = (u_char *)&l1;
 	p2 = (u_char *)&l2;
 	memcpy(p1,mem_cursor,8);
-	locate(22,term_textbox_y+3);
-	colprintf("~FGU64 system  :~RS %llu\n",l1);
+	locate(22,term_textbox_y+1);
+	if (decode_page)
+		colprintf("~FGU64 system  :~RS %llu\n",l1);
+	else
+		colprintf("~FGS64 system  :~RS %lld\n",(uint64_t)l1);
 
-	/* U64 reverse */
+	/* 64 bit reverse */
 	l2 = l1;
 	for(i=0;i < 8;++i) p1[i] = p2[7-i];
-	locate(22,term_textbox_y+4);
-	colprintf("~FTU64 reverse :~RS %llu\n",l1);
+	locate(22,term_textbox_y+2);
+	if (decode_page)
+		colprintf("~FTU64 reverse :~RS %llu\n",l1);
+	else
+		colprintf("~FTS64 reverse :~RS %lld\n",(uint64_t)l1);
 
-	colprintf("~FGsys~RS = system integer byte order, ~FTrev~RS = reverse order");
+	locate(0,term_textbox_y+5);
+	colprintf("~FGsys~RS = system byte order, ~FTrev~RS = reverse order. ~FGPress 'D' again for next...");
 }
 
 
 
 
-/*** Also draws vertical bars every 5 byte columns ***/
-void drawHorizontalLine(int y)
+/*** Draw the lines dividing the data panes from the banner and command 
+     panes ***/
+void drawHorizontalLines()
 {
 	int div_y;
 	int cols;
 	int i;
+	int y;
 	int w;
 
-	locate(0,y);
-	colprintf("~BT~FT");
 	w = term_pane_cols * 4 + 2;
 	div_y = term_pane_cols * 3;
 
-	for(i=cols=0;i < w;++i)
+	for(y=BAN_PANE_HEIGHT;;y=term_div_y)
 	{
-		if (i == div_y) 
+		locate(0,y);
+		colprintf("~BT~FT");
+		for(i=cols=0;i < w;++i)
 		{
-			putchar('-');
-			cols = 0;
-		}
-		/* Hex pane */
-		else if (i < div_y)
-		{
-			if (!(i % 3))
+			if (i == div_y) 
 			{
-				if (!(++cols % 4))
-					colprintf("~BB+~BT");
-				else
-					putchar('-');
+				putchar('-');
+				cols = 0;
 			}
-			else putchar('-');
+			/* Hex pane */
+			else if (i < div_y)
+			{
+				if (!(i % 3))
+				{
+					if (!(++cols % 4))
+						colprintf("~BB+~BT");
+					else
+						putchar('-');
+				}
+				else putchar('-');
+			}
+			/* Text pane */
+			else if (++cols > 1 && cols % 4 == 1)
+				colprintf("~BM+~BT");
+			else
+				putchar('-');
 		}
-		/* Text pane */
-		else if (++cols > 1 && cols % 4 == 1)
-			colprintf("~BM+~BT");
-		else
-			putchar('-');
+		colprintf("~RS");
+		if (y == term_div_y)  break;
 	}
-	colprintf("\n");
+	locate(0,BAN_PANE_HEIGHT+1);
 }
 
 

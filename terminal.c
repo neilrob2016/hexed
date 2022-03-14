@@ -67,21 +67,14 @@ void getTermSize()
 		}
 	}
 
+	/* Set up columns in edit panes. 0.72 was found by trial and error */
 	term_pane_cols = (int)((float)term_width * 0.72);
 	if (term_pane_cols % 3) term_pane_cols -= (term_pane_cols % 3);
 	term_pane_cols /= 3;
 
-	/* Set up draw params */
-	if (term_height > 3 && term_width > 9)
-	{
-		term_div_y = term_height - CMD_PANE_HEIGHT - 1;
-		term_textbox_y = term_div_y + 2;
-	}
-	else
-	{
-		term_div_y = 3;
-		term_textbox_y = 5;
-	}
+	/* y positioners */
+	term_div_y = term_height - CMD_PANE_HEIGHT - 1;
+	term_textbox_y = term_div_y + 2;
 	cmd_y = term_div_y + 1;
 }
 

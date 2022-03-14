@@ -11,7 +11,6 @@ void errprintf(const char *fmt, ...)
 	va_start(args,fmt);
 	vprintf(fmt,args);
 	va_end(args);
-	beep();
 }
 
 
@@ -20,7 +19,6 @@ void errprintf(const char *fmt, ...)
 void syserrprintf(char *func)
 {
 	colprintf("~BR~FWERROR:~RS~FT %s()~RS: %s\n",func,strerror(errno));
-	beep();
 }
 
 

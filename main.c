@@ -39,6 +39,7 @@ void init()
 	mem_decode_view = NULL;
 
 	help_page = 0;
+	decode_page = 0;
 	esc_time = 0;
 	total_updates = 0;
 	total_inserts = 0;
@@ -178,6 +179,7 @@ void mainloop()
 {
 	fd_set mask;
 
+	clearScreen();
 	drawScreen();
 
 	while(1)
@@ -191,6 +193,7 @@ void mainloop()
 			{
 				/* Can only be SIGWINCH here so redraw */
 				getTermSize();
+				clearScreen();
 				drawScreen();
 				continue;
 			}

@@ -18,7 +18,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20220310"
+#define VERSION "20220314"
 
 #define STDIN           0
 #define STDOUT          1
@@ -133,6 +133,7 @@ EXTERN int search_text_len;
 EXTERN int oldest_undo_pos;
 EXTERN int next_undo_pos;
 EXTERN int help_page;
+EXTERN int decode_page;
 EXTERN int undo_cnt;
 EXTERN int total_updates;
 EXTERN int total_inserts;
@@ -207,6 +208,5 @@ void colprintf(const char *fmt, ...);
 
 /* misc.c */
 void resetCommand();
-void beep();
 void version();
 void doExit(int code);
