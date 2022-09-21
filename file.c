@@ -238,11 +238,81 @@ int memcasecmp(const void *s1, const void *s2, size_t len)
 
 
 
+u_char *findSearchText(u_char *start)
+{
+	u_char *ptr;
+	u_char *last;
+	int (*fptr)(const void *s1, const void *s2, size_t len);
+
+	last = mem_end - search_text_len + 1;
+	if (last < mem_start) return NULL;
+
+	flags.search_wrapped = 0;
+	mem_search_find_start = NULL;
+	mem_search_find_end = NULL;
+	fptr = flags.search_ign_case ? memcasecmp : memcmp;
+
+	/* Search from current cursor position and wrap around */
+	for(ptr=start;!flags.search_wrapped || ptr < start;++ptr)
+	{
+		/* If we're at the end go to the start of memory */
+		if (ptr > last)
+		{
+			ptr = mem_start;
+			flags.search_wrapped = 1;
+		}
+
+		/* Check for match */
+		if (!fptr(ptr,search_text,search_text_len)) return ptr;
+	}
+	return NULL;
+}
+
+
+
+
+/*** Convert the hex values in cmd_text and put them in data ***/
+void hexToBinary(u_char *data, int *data_len)
+{
+	u_char *ptr;
+	u_char *end;
+	u_char value;
+	int dlen;
+	int i;
+
+	assert(!(cmd_text_len % 2));
+
+	end = (u_char *)cmd_text + cmd_text_len;
+	dlen = 0;
+
+	for(ptr=(u_char *)cmd_text;ptr < end;)
+	{
+		value = 0;
+		for(i=0;i < 2;++i,++ptr)
+		{
+			if (isdigit(*ptr))
+				value |= *ptr - '0';
+			else 
+				value |= *ptr - 'A' + 10;
+			if (!i) value <<= 4;
+		}
+		data[dlen++] = value;
+		data[dlen] = 0;
+	}
+	*data_len = dlen;
+	flags.search_hex = 1;
+}
+
+
+
+
 void findText()
 {
 	u_char *ptr;
 	u_char *mem_prev;
-	int (*fptr)(const void *s1, const void *s2, size_t len);
+	u_char *search_start;
+
+	search_start = mem_cursor;
 
 	switch(user_cmd)
 	{
@@ -263,6 +333,12 @@ void findText()
 			cmd_state = STATE_ERR_NO_SEARCH_TEXT;
 			return;
 		}
+		/* Move it up one so we don't search from where we've already
+		   found something */
+		if (search_start < mem_end)
+			++search_start;
+		else
+			search_start = mem_start;
 		break;
 	case 'X':
 		if (!cmd_text_len) 
@@ -276,80 +352,121 @@ void findText()
 			cmd_state = STATE_ERR_INVALID_HEX_LEN;
 			return;
 		}
-		hexToSearchText();
+		hexToBinary(search_text,&search_text_len);
 		break;
 	default:
 		assert(0);
 	}
-	flags.search_wrapped = 0;
 	mem_prev = mem_search_find_start;
-	mem_search_find_start = NULL;
-	mem_search_find_end = NULL;
-	fptr = flags.search_ign_case ? memcasecmp : memcmp;
 
-	/* Search from current cursor position and wrap around */
-	for(ptr=mem_cursor;!flags.search_wrapped || ptr <= mem_cursor;)
+	if (!(ptr = findSearchText(search_start)))
 	{
-		/* If we're at the end go back to the start */
-		if (ptr > mem_end - search_text_len)
-		{
-			ptr = mem_start;
-			flags.search_wrapped = 1;
-		}
-		else ++ptr;
-
-		/* Check for match */
-		if (!fptr(ptr,search_text,search_text_len))
-		{
-			mem_search_find_start = mem_cursor = ptr;
-			mem_search_find_end = ptr + search_text_len - 1;
-			if (user_cmd == 'T')
-				term_pane = PANE_TEXT;
-			else if (user_cmd == 'X')
-				term_pane = PANE_HEX;
-
-			if (ptr < mem_pane_start || ptr > mem_pane_end)
-				setPaneStart(ptr);
-			drawScreen();
-			cmd_state = STATE_CMD;
-			return;
-		}
+		resetCommand();
+		if (mem_prev) drawScreen();
+		cmd_state = STATE_ERR_NOT_FOUND;
+		return;
 	}
 
-	resetCommand();
-	if (mem_prev) drawScreen();
-	cmd_state = STATE_NOT_FOUND;
+	/* Found something */
+	mem_search_find_start = ptr;
+	mem_search_find_end = ptr + search_text_len - 1;
+	mem_cursor = ptr;
+	if (user_cmd == 'T')
+		term_pane = PANE_TEXT;
+	else if (user_cmd == 'X')
+		term_pane = PANE_HEX;
+
+	if (ptr < mem_pane_start || ptr > mem_pane_end)
+		setPaneStart(ptr);
+	drawScreen();
+	cmd_state = STATE_CMD;
 }
 
 
 
 
-/*** Convert the hex values in cmd_text and put them in search_text ***/
-void hexToSearchText()
+void doSearchAndReplace()
 {
-	char *ptr;
-	char *end;
-	u_char value;
-	int i;
+	u_char *ptr;
+	u_char *search_start;
 
-	assert(!(cmd_text_len % 2));
+	sr_count = 0;
+	flags.search_hex = 0;
 
-	end = cmd_text + cmd_text_len;
-	search_text_len = 0;
-
-	for(ptr=cmd_text;ptr < end;)
+	if (!cmd_text_len)
 	{
-		value = 0;
-		for(i=0;i < 2;++i,++ptr)
-		{
-			if (isdigit(*ptr))
-				value |= *ptr - '0';
-			else 
-				value |= *ptr - 'A' + 10;
-			if (!i) value <<= 4;
-		}
-		search_text[search_text_len++] = value;
-		search_text[search_text_len] = 0;
+		resetCommand();
+		sr_state = SR_STATE_NONE;
+		return;
 	}
-	flags.search_hex = 1;
+
+	switch(sr_state)
+	{
+	case SR_STATE_TEXT1:
+		strcpy((char *)search_text,cmd_text);
+		search_text_len = cmd_text_len;
+		clearCommandText();
+		++sr_state;
+		return;
+
+	case SR_STATE_TEXT2:
+		if (cmd_text_len != search_text_len)
+		{
+			resetCommand();
+			cmd_state = STATE_ERR_MUST_BE_SAME_LEN;
+			return;
+		}
+		strcpy((char *)replace_text,cmd_text);
+		replace_text_len = cmd_text_len;
+		break;
+
+	case SR_STATE_HEX1:
+		if (cmd_text_len % 2)
+		{
+			resetCommand();
+			cmd_state = STATE_ERR_INVALID_HEX_LEN;
+			return;
+		}
+		strcpy((char *)sr_text,cmd_text);
+		sr_text_len = cmd_text_len;
+		hexToBinary(search_text,&search_text_len);
+		clearCommandText();
+		++sr_state;
+		return;
+
+	case SR_STATE_HEX2:
+		if (cmd_text_len != sr_text_len)
+		{
+			resetCommand();
+			cmd_state = STATE_ERR_MUST_BE_SAME_LEN;
+			return;
+		}
+		strcpy((char *)replace_text,cmd_text);
+		hexToBinary(replace_text,&replace_text_len);
+		break;
+
+	default:
+		assert(0);
+	}
+
+	/* The search string and replace strings must differ */
+	if (!memcmp(search_text,replace_text,replace_text_len))
+	{
+		resetCommand();
+		cmd_state = STATE_ERR_MUST_DIFFER;
+		return;
+	}
+
+	/* We've got our search and replace text so lets do some replacing */
+	flags.search_ign_case = 0;
+	for(search_start=mem_cursor;
+	    (ptr = findSearchText(search_start));++sr_count)
+	{
+		memcpy(ptr,replace_text,replace_text_len);
+		search_start = ptr + 1;
+	}
+	drawScreen();
+	resetCommand();
+	if (!sr_count) cmd_state = STATE_ERR_NOT_FOUND;
+	sr_state = SR_STATE_NONE;
 }

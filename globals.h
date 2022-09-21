@@ -18,7 +18,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20220314"
+#define VERSION "20220921"
 
 #define STDIN           0
 #define STDOUT          1
@@ -74,7 +74,7 @@ enum
 	BAN_LINE_F_F  = 1,
 	BAN_LINE_U_S  = 2,
 	BAN_LINE_S_C  = 4,
-	BAN_LINE_T    = 8,
+	BAN_LINE_T_SR = 8,
 	ALL_BAN_LINES = 0xF
 };
 
@@ -84,14 +84,26 @@ enum
 	STATE_TEXT,
 	STATE_YN,
 	STATE_SAVE_OK,
-	STATE_NOT_FOUND,
+
+	STATE_ERR_NOT_FOUND,
 	STATE_ERR_CMD,
 	STATE_ERR_SAVE,
 	STATE_ERR_INPUT,
 	STATE_ERR_NO_SEARCH_TEXT,
 	STATE_ERR_INVALID_HEX_LEN,
+	STATE_ERR_MUST_BE_SAME_LEN,
+	STATE_ERR_MUST_DIFFER,
 	STATE_ERR_UNDO,
 	STATE_ERR_DATA_VIEW
+};
+
+enum
+{
+	SR_STATE_NONE,
+	SR_STATE_TEXT1,
+	SR_STATE_TEXT2,
+	SR_STATE_HEX1,
+	SR_STATE_HEX2
 };
 
 struct st_flags
@@ -129,7 +141,11 @@ EXTERN int cmd_x;
 EXTERN int cmd_y;
 EXTERN int cmd_state;
 EXTERN int cmd_text_len;
+EXTERN int sr_state;
+EXTERN int sr_text_len;
+EXTERN int sr_count;
 EXTERN int search_text_len;
+EXTERN int replace_text_len;
 EXTERN int oldest_undo_pos;
 EXTERN int next_undo_pos;
 EXTERN int help_page;
@@ -150,7 +166,9 @@ EXTERN u_char *mem_search_find_end;
 EXTERN u_char *mem_undo_reset;
 EXTERN u_char *mem_decode_view;
 EXTERN u_char insert_char;
+EXTERN u_char sr_text[CMD_TEXT_SIZE+1];
 EXTERN u_char search_text[CMD_TEXT_SIZE+1];
+EXTERN u_char replace_text[CMD_TEXT_SIZE+1];
 EXTERN char cmd_text[CMD_TEXT_SIZE+1];
 EXTERN char user_cmd;
 EXTERN char substitute_char;
@@ -194,7 +212,7 @@ void changeFileData(u_char c);
 void insertAtCursorPos();
 void deleteAtCursorPos();
 void findText();
-void hexToSearchText();
+void doSearchAndReplace();
 
 /* undo.c */
 void initUndo();
@@ -207,6 +225,7 @@ void syserrprintf(char *func);
 void colprintf(const char *fmt, ...);
 
 /* misc.c */
+void clearCommandText();
 void resetCommand();
 void version();
 void doExit(int code);

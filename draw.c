@@ -2,7 +2,7 @@
 
 #define GET_PRINTABLE(C) (IS_PRINTABLE(C) ? C : substitute_char)
 
-#define PROMPT "Command ('H' for help): "
+#define PROMPT "Command or TAB ('H' for help): "
 
 void drawDecodeView();
 void drawFileInfo();
@@ -200,7 +200,7 @@ int drawBanner(int line_flags)
 				cursor_name[term_type][cursor_type]);
 		}
 	}
-	if (line_flags & BAN_LINE_T)
+	if (line_flags & BAN_LINE_T_SR)
 	{
 		clearLine(3);
 		locate(0,3);
@@ -209,6 +209,9 @@ int drawBanner(int line_flags)
 			term_height,
 			term_pane_cols,
 			term_height - BAN_PANE_HEIGHT - CMD_PANE_HEIGHT - 2);
+
+		locate(32,3);
+		colprintf("~BM~FWS&R count    :~RS %d",sr_count);
 	}
 	return 1;
 }
@@ -234,6 +237,8 @@ void drawCmdPane()
 		putchar(user_cmd);
 	}
 	else putchar(' ');
+
+	if (cmd_state >= STATE_SAVE_OK) locate(0,term_textbox_y);
 
 	switch(cmd_state)
 	{
@@ -276,7 +281,9 @@ void drawCmdPane()
 	case STATE_YN:
 		cmd_y = term_textbox_y;
 		locate(0,cmd_y);
-		cmd_x = (cmd_text[0] ? cmd_text_len : 0);
+
+		/* If user has already entered some text move cursor along */
+		cmd_x = cmd_text_len;
 
 		switch(user_cmd)
 		{
@@ -309,7 +316,42 @@ void drawCmdPane()
 			colprintf("~FMHex search:~RS %s",cmd_text);
 			break;
 		default:
-			assert(0);
+			/* Use states instead of user_cmd for search and
+			   replace as its more logical */
+			switch(sr_state)
+			{
+			case SR_STATE_TEXT1:
+				cmd_x += 14;
+				colprintf("~FMS&R old text:~RS %s\n",cmd_text);
+				break;
+
+			case SR_STATE_TEXT2:
+				cmd_x += 14;
+				colprintf("~FMS&R old text:~RS %s\n",search_text);
+				++cmd_y;	
+				locate(0,cmd_y);
+				cmd_x = cmd_text_len + 14;
+				colprintf("~FYS&R new text:~RS %s",cmd_text);
+				break;
+
+			case SR_STATE_HEX1:
+				cmd_x += 13;
+				colprintf("~FMS&R old hex:~RS %s",cmd_text);
+				break;
+
+			case SR_STATE_HEX2:
+				cmd_x += 13;
+				colprintf("~FMS&R old hex:~RS %s",sr_text);
+				++cmd_y;	
+
+				locate(0,cmd_y);
+				cmd_x = cmd_text_len + 13;
+				colprintf("~FYS&R new hex:~RS %s",cmd_text);
+				break;
+
+			default:
+				assert(0);
+			}
 		}
 		if (cmd_state == STATE_TEXT) break;
 
@@ -320,47 +362,46 @@ void drawCmdPane()
 		break;
 
 	case STATE_SAVE_OK:
-		locate(0,term_textbox_y);
 		colprintf("~BG~FW*** Saved ***~RS");
 		break;
 
-	case STATE_NOT_FOUND:
-		locate(0,term_textbox_y);
+	case STATE_ERR_NOT_FOUND:
 		colprintf("~BM~FW*** Not found ***~RS");
 		break;
 
 	case STATE_ERR_CMD:
-		locate(0,term_textbox_y);
 		errprintf("Unknown command '%c'.",user_cmd);
 		break;
 
 	case STATE_ERR_SAVE:
-		locate(0,term_textbox_y);
 		syserrprintf("open");
 		break;
 
 	case STATE_ERR_INPUT:
-		locate(0,term_textbox_y);
 		errprintf("Invalid input.");
 		break;
 
 	case STATE_ERR_NO_SEARCH_TEXT:
-		locate(0,term_textbox_y);
 		errprintf("No search text set.");
 		break;
 
 	case STATE_ERR_INVALID_HEX_LEN:
-		locate(0,term_textbox_y);
 		errprintf("Invalid hex length.");
 		break;
 
+	case STATE_ERR_MUST_BE_SAME_LEN:
+		errprintf("Search and replace strings must be the same length.");
+		break;
+
+	case STATE_ERR_MUST_DIFFER:
+		errprintf("Search and replace strings must differ.");
+		break;
+
 	case STATE_ERR_UNDO:
-		locate(0,term_textbox_y);
 		errprintf("No more undos.");
 		break;
 
 	case STATE_ERR_DATA_VIEW:
-		locate(0,term_textbox_y);
 		errprintf("Not enough data following cursor.");
 		break;
 
@@ -655,10 +696,10 @@ void drawHelp()
 	if (help_page)
 	{
 		colprintf("~BM~FW*** Commands ***\n");
-		colprintf("~FTA:~RS Save file  ~FTC:~RS Toggle colour  ~FTD:~RS Decode            ~FTF:~RS File info\n");
-		colprintf("~FTG:~RS Goto pos   ~FTH:~RS Help           ~FTI:~RS Text search (CI)  ~FTN:~RS Find next\n");
-		colprintf("~FTQ:~RS Quit       ~FTR:~RS Redraw         ~FTS:~RS Save as           ~FTT:~RS Text search\n");
-		colprintf("~FTV:~RS Version    ~FTX:~RS Hex search\n");
+		colprintf("~FTA:~RS Save file  ~FTC:~RS Toggle colour  ~FTD:~RS Decode             ~FTF:~RS File info\n");
+		colprintf("~FTG:~RS Goto pos   ~FTH:~RS Help           ~FTI:~RS Text search (CI)   ~FTN:~RS Find next\n");
+		colprintf("~FTQ:~RS Quit       ~FTR:~RS Redraw         ~FTS:~RS Save as            ~FTT:~RS Text search\n");
+		colprintf("~FTV:~RS Version    ~FTX:~RS Hex search     ~FTY:~RS Text search & rep  ~FTZ:~RS Hex search & replace\n");
 	}
 	else
 	{

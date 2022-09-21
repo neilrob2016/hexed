@@ -16,7 +16,6 @@ void stateCmd(u_char c);
 void stateText(u_char c);
 void stateYN(u_char c);
 void findText();
-void hexToSearchText();
 void setCommandText(char *str);
 void setDecodeView();
 
@@ -423,6 +422,10 @@ void stateCmd(u_char c)
 		break;
 	case 'F':
 		break;
+	case 'H':
+		help_page = !help_page;
+		/* Gets reset at the bottom so return here */
+		return;
 	case 'I':
 		/* Might not be in command pane if F6 used */
 		if (term_pane != PANE_CMD) term_pane = PANE_CMD;
@@ -430,6 +433,9 @@ void stateCmd(u_char c)
 		flags.search_ign_case = 1;
 		flags.search_hex = 0;
 		cmd_state = STATE_TEXT;
+		break;
+	case 'N':
+		findText();
 		break;
 	case 'Q':
 		cmd_state = STATE_YN;
@@ -449,26 +455,28 @@ void stateCmd(u_char c)
 		flags.search_hex = 0;
 		cmd_state = STATE_TEXT;
 		break;
+	case 'U':
+		undo();
+		drawScreen();
+		break;
 	case 'X':
 		flags.search_ign_case = 0;
 		cmd_state = STATE_TEXT;
 		break;
-	case 'N':
-		findText();
-		break;
-	case 'H':
-		help_page = !help_page;
-		break;
 	case 'V':
 		break;
-	case 'U':
-		undo();
-		drawScreen();
+	case 'Y':
+	case 'Z':
+		sr_count = 0;
+		cmd_state = STATE_TEXT;
+		drawBanner(BAN_LINE_T_SR);
+		sr_state = (user_cmd == 'Z' ? SR_STATE_HEX1 : SR_STATE_TEXT1);
 		break;
 	default:
 		cmd_state = STATE_ERR_CMD;
 		break;
 	}
+	help_page = 0;
 }
 
 
@@ -510,7 +518,10 @@ void stateText(u_char c)
 			else resetCommand();
 			break;
 		default:
-			assert(0);
+			if (sr_state != SR_STATE_NONE)
+				doSearchAndReplace();
+			else
+				assert(0);
 		}
 		return;
 	}
@@ -533,6 +544,7 @@ void stateText(u_char c)
 	{
 	case 'I':
 	case 'T':
+	case 'Y':
 		cmd_text[cmd_text_len++] = (char)c;
 		break;
 	case 'G':
@@ -542,12 +554,30 @@ void stateText(u_char c)
 		if (!isspace(c)) cmd_text[cmd_text_len++] = (char)c;
 		break;
 	case 'X':
+	case 'Z':
 		c = toupper(c);
 		if (isdigit(c) || (c >= 'A' && c <= 'F'))
 			cmd_text[cmd_text_len++] = c;
 		break;
 	default:
-		assert(0);
+		/* In HEX2 and TEXT2 search and replace states user_cmd has 
+		   been reset as we can't use it to differentiate between 
+		   states 1 & 2 */
+		switch(sr_state)
+		{
+		case SR_STATE_HEX2:
+			c = toupper(c);
+			if (isdigit(c) || (c >= 'A' && c <= 'F'))
+				cmd_text[cmd_text_len++] = c;
+			break;
+
+		case SR_STATE_TEXT2:
+			cmd_text[cmd_text_len++] = (char)c;
+			break;
+
+		default:
+			assert(0);
+		}
 	}
 	cmd_text[cmd_text_len] = 0;
 }

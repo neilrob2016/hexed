@@ -1,11 +1,20 @@
 #include "globals.h"
 
-void resetCommand()
+void clearCommandText()
 {
-	cmd_state = STATE_CMD;
-	user_cmd = 0;
 	cmd_text[0] = 0;
 	cmd_text_len = 0;
+	user_cmd = 0;
+}
+
+
+
+
+void resetCommand()
+{
+	clearCommandText();
+	cmd_state = STATE_CMD;
+	sr_state = SR_STATE_NONE;
 
 	/* Want to get rid of decode highlighting when we reset the command */
 	if (mem_decode_view)

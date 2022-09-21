@@ -1,0 +1,15 @@
+20220310
+========
+- Initial public version
+
+
+20220314
+========
+- Added signed in decode
+- Bug fixes and minor improvements
+
+
+20220921
+========
+- Added search and replace functionality
+- Fixed a bug in the search algo that could cause an infinite loop

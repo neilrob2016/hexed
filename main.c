@@ -45,6 +45,8 @@ void init()
 	total_inserts = 0;
 	total_deletes = 0;
 	total_undos = 0;
+	sr_state = SR_STATE_NONE;
+	sr_count = 0;
 
 	resetCommand();
 	initKeyboard();
@@ -146,15 +148,16 @@ void parseCmdLine(int argc, char **argv)
 	       "       -i <insert char/hex> : One character is treated as ascii, two must be\n"
 	       "                              a valid hex value. Eg: X or 20.\n"
 	       "                              Default = '%c' (0x%02X)\n"
-	       "       -s <substitute char> : Substitute character in text pane for unprintable\n"
-	       "                              characters. Must be printable itself.\n"
+	       "       -s <substitute char> : The substitute character in the text pane for\n"
+	       "                              unprintable characters. Must be printable itself.\n"
 	       "                              Default = '%c'\n"
 	       "       -c <cursor type>     : Options are 'blk','udl' and 'bar'\n"
 	       "                              Default = 'blk' (block)\n"
 	       "       -p <start pane>      : Options are 'hex','text' or 'cmd'.\n"
 	       "                              Default = 'cmd'\n"
 	       "       -x <width>x<height>  : Force terminal size. Eg: '80x25'\n"
-	       "       -n                   : No colour\n"
+	       "       -n                   : No ANSI colour (will still use other ANSI\n"
+	       "                              terminal codes)\n"
 	       "       -v                   : Print version and build date then exit\n"
 	       "Note: All arguments are optional except -f\n",
 		argv[0],INSERT_CHAR,INSERT_CHAR,SUBSTITUTE_CHAR);
