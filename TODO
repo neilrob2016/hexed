@@ -1,5 +1,4 @@
 search and replace
-	undo
-	allow different old and new strings (ie insert/delete bytes)
+	allow different length old and new strings (ie insert/delete bytes)
 too many redraws with positionCursor()
 undo insert/delete

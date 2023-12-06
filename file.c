@@ -99,7 +99,7 @@ void changeFileData(u_char c)
 	{
 		if (!IS_PRINTABLE(c)) return;
 
-		addUndo(mem_cursor);
+		addUndo(mem_cursor,0);
 		*mem_cursor = c;
 		++total_updates;
 
@@ -124,7 +124,7 @@ void changeFileData(u_char c)
 
 	if (flags.cur_hex_right)
 	{
-		addUndo(mem_cursor);
+		addUndo(mem_cursor,0);
 		/* 2nd/right nibble of hex value */
 		*mem_cursor = (c & 0x0F) | (*mem_cursor & 0xF0);
 		drawUndoList();
@@ -137,7 +137,7 @@ void changeFileData(u_char c)
 	}
 	else
 	{
-		addUndo(mem_cursor);
+		addUndo(mem_cursor,0);
 		*mem_cursor = (c << 4) | (*mem_cursor & 0x0F);
 		drawUndoList();
 		if (user_cmd == 'F') drawCmdPane();
@@ -180,7 +180,7 @@ void insertAtCursorPos()
 	++total_inserts;
 
 	/* Stored pointers will be invalid now */
-	initUndo();
+	initUndo(1);
 	mem_decode_view = NULL;
 
 	/* Sets mem_pane_end */
@@ -206,7 +206,7 @@ void deleteAtCursorPos()
 		--file_size;
 		++total_deletes;
 
-		initUndo();
+		initUndo(1);
 
 		/* Sets mem_pane_end */
 		drawScreen();
@@ -462,6 +462,10 @@ void doSearchAndReplace()
 	for(search_start=mem_cursor;
 	    (ptr = findSearchText(search_start));++sr_count)
 	{
+		/* Note that there will be an individual undo for each piece
+		   of text that is replaced so a single search and replace 
+		   could max out the undo list */
+		addUndo(ptr,replace_text_len);
 		memcpy(ptr,replace_text,replace_text_len);
 		search_start = ptr + 1;
 	}

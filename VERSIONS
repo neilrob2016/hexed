@@ -13,3 +13,8 @@
 ========
 - Added search and replace functionality
 - Fixed a bug in the search algo that could cause an infinite loop
+
+
+20231206
+========
+- Undo will now undo search and replace text as well as single characters.

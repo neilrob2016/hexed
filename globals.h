@@ -18,7 +18,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20220921"
+#define VERSION "20231206"
 
 #define STDIN           0
 #define STDOUT          1
@@ -26,7 +26,7 @@
 #define CMD_PANE_HEIGHT 7
 #define CMD_X_POS       9
 #define CMD_TEXT_SIZE   100
-#define MAX_UNDO        25
+#define MAX_UNDO        30 
 #define INSERT_CHAR     ' '
 #define SUBSTITUTE_CHAR '.'
 #define ASCII_DEL       127
@@ -119,7 +119,9 @@ struct st_flags
 struct st_undo
 {
 	u_char *mem_pos;
-	u_char prev_val;
+	u_char prev_char;
+	u_char *prev_str;
+	int str_len;
 	int cur_hex_right;
 };
 
@@ -155,6 +157,7 @@ EXTERN int total_updates;
 EXTERN int total_inserts;
 EXTERN int total_deletes;
 EXTERN int total_undos;
+EXTERN int undo_reset_str_len;
 EXTERN long goto_pos;
 EXTERN u_char *mem_start;
 EXTERN u_char *mem_end;
@@ -215,8 +218,8 @@ void findText();
 void doSearchAndReplace();
 
 /* undo.c */
-void initUndo();
-void addUndo(u_char *ptr);
+void initUndo(int do_free);
+void addUndo(u_char *ptr, int str_len);
 void undo();
 
 /* printf.c */

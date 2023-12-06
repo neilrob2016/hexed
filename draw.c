@@ -162,9 +162,14 @@ int drawBanner(int line_flags)
 		colprintf("~BR~FWUndo cnt/val (F5):~RS %-2d",undo_cnt);
 		if (undo_cnt)
 		{
-			undo_value = undo_list[next_undo_pos].prev_val;
-			colprintf("~FT,~RS0x%02X/'%c'  ",
-				undo_value,GET_PRINTABLE(undo_value));
+			if (undo_list[next_undo_pos].str_len)
+				colprintf("~FT,~RS[S&R]     ");
+			else
+			{
+				undo_value = undo_list[next_undo_pos].prev_char;
+				colprintf("~FT,~RS0x%02X/'%c'  ",
+					undo_value,GET_PRINTABLE(undo_value));
+			}
 		}
 		else printf("           ");
 
@@ -423,10 +428,12 @@ void drawUndoList()
 	{
 		"FB","FB","FB","FB","FB",
 		"FB","FB","FB","FB","FB",
+		"FB","FB","FB","FB","FB",
 		"FT","FT","FT","FT","FT",
 		"FG","FG","FG","FG","FY",
 		"FY","FY","FR","FR","FM"
 	};
+	struct st_undo *ul;
 	u_char *save_cursor;
 	u_char *ptr;
 	u_char c;
@@ -435,7 +442,9 @@ void drawUndoList()
 	int save_right;
 	int pos;
 	int colpos;
+	int cnt;
 	int i;
+	int j;
 
 	if (!undo_cnt) return;
 
@@ -451,10 +460,12 @@ void drawUndoList()
 
 	for(i=0,pos=oldest_undo_pos;i <= undo_cnt;++i)
 	{
+		ul = &undo_list[pos];
 		if (i)
 		{
-			ptr = undo_list[pos].mem_pos;
+			ptr = ul->mem_pos;
 			pos=(pos+1) % MAX_UNDO;
+			cnt = (ul->str_len ? ul->str_len : 1);
 		}
 		else
 		{
@@ -462,16 +473,21 @@ void drawUndoList()
 			   value thats dropped off the end of the undo list */
 			if (!mem_undo_reset) continue;
 			ptr = mem_undo_reset;
+			cnt = (undo_reset_str_len ? undo_reset_str_len : 1);
 		}
 
 		/* If we're not using colour we don't need to highlight colour
 		   in anything, just print latest update */
 		if (!flags.use_colour && i < undo_cnt) continue;
+		if (ptr < mem_pane_start || ptr > mem_pane_end)
+		{
+			if (i) ++colpos;
+			continue;
+		}
 
-		if (ptr >= mem_pane_start && ptr <= mem_pane_end)
+		for(j=0;j < cnt;++j,++ptr)
 		{
 			mem_cursor = ptr;
-
 			term_pane = PANE_HEX;
 			positionCursor();
 			if (i)
@@ -491,6 +507,7 @@ void drawUndoList()
 			}
 			else colprintf("~RS%c",GET_PRINTABLE(c));
 		}
+
 		if (i) ++colpos;
 	}
 	colprintf("~RS");
@@ -700,12 +717,13 @@ void drawHelp()
 		colprintf("~FTG:~RS Goto pos   ~FTH:~RS Help           ~FTI:~RS Text search (CI)   ~FTN:~RS Find next\n");
 		colprintf("~FTQ:~RS Quit       ~FTR:~RS Redraw         ~FTS:~RS Save as            ~FTT:~RS Text search\n");
 		colprintf("~FTV:~RS Version    ~FTX:~RS Hex search     ~FTY:~RS Text search & rep  ~FTZ:~RS Hex search & replace\n");
+		colprintf("~FGPress 'H' again for function keys...");
 	}
 	else
 	{
 		colprintf("~BM~FW*** Function keys ***\n");
 		colprintf("~FYF1:~RS Page up   ~FYF2:~RS Page down   ~FYF3:~RS Insert   ~FYF4:~RS Delete\n");
 		colprintf("~FYF5:~RS Undo      ~FYF6:~RS Search      ~FYF7:~RS Decode   ~FYF8:~RS Cursor type\n");
+		colprintf("~FGPress 'H' again for commands...");
 	}
-	colprintf("~FGPress 'H' again for next page...");
 }

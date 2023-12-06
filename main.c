@@ -51,7 +51,7 @@ void init()
 	resetCommand();
 	initKeyboard();
 	initSignals();
-	initUndo();
+	initUndo(0);
 }
 
 
