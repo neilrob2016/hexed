@@ -18,7 +18,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20231206"
+#define VERSION "20231213"
 
 #define STDIN           0
 #define STDOUT          1
@@ -26,11 +26,9 @@
 #define CMD_PANE_HEIGHT 7
 #define CMD_X_POS       9
 #define CMD_TEXT_SIZE   100
-#define MAX_UNDO        30 
-#define INSERT_CHAR     ' '
 #define SUBSTITUTE_CHAR '.'
 #define ASCII_DEL       127
-#define MIN_TERM_WIDTH  55
+#define MIN_TERM_WIDTH  70
 #define MIN_TERM_HEIGHT (BAN_PANE_HEIGHT + CMD_PANE_HEIGHT + 3)
 
 #define IS_PRINTABLE(C) (C > 31 && C < ASCII_DEL)
@@ -53,7 +51,7 @@ enum
 enum
 {
 	CUR_BLOCK,
-	CUR_HALF_BLOCK_BAR, /* Linux console doesn't support a bar */
+	CUR_HALF_BLOCK, /* Linux console doesn't support a bar */
 	CUR_UNDERLINE,
 
 	NUM_CURSOR_TYPES
@@ -71,10 +69,10 @@ enum
 /* Banner lines */
 enum
 {
-	BAN_LINE_F_F  = 1,
-	BAN_LINE_U_S  = 2,
-	BAN_LINE_S_C  = 4,
-	BAN_LINE_T_SR = 8,
+	BAN_LINE1 = 1,
+	BAN_LINE2 = 2,
+	BAN_LINE3 = 4,
+	BAN_LINE4 = 8,
 	ALL_BAN_LINES = 0xF
 };
 
@@ -106,6 +104,14 @@ enum
 	SR_STATE_HEX2
 };
 
+enum
+{
+	UNDO_CHAR,
+	UNDO_STR,
+	UNDO_INSERT,
+	UNDO_DELETE
+};
+
 struct st_flags
 {
 	unsigned use_colour      : 1;
@@ -114,21 +120,24 @@ struct st_flags
 	unsigned search_ign_case : 1;
 	unsigned search_wrapped  : 1;
 	unsigned fixed_term_size : 1;
+	unsigned insert_mode     : 1;
+	unsigned clear_no_undo   : 1;
 };
 
-struct st_undo
+typedef struct
 {
+	int type;
 	u_char *mem_pos;
 	u_char prev_char;
 	u_char *prev_str;
 	int str_len;
 	int cur_hex_right;
-};
+} st_undo;
 
 EXTERN struct termios saved_tio;
 EXTERN struct stat file_stat;
 EXTERN struct st_flags flags;
-EXTERN struct st_undo undo_list[MAX_UNDO];
+EXTERN st_undo *undo_list;
 EXTERN off_t file_size;
 EXTERN off_t file_malloc_size;
 EXTERN int term_type;
@@ -142,17 +151,17 @@ EXTERN int cursor_type;
 EXTERN int cmd_x;
 EXTERN int cmd_y;
 EXTERN int cmd_state;
+EXTERN int prev_cmd_state;
 EXTERN int cmd_text_len;
 EXTERN int sr_state;
 EXTERN int sr_text_len;
 EXTERN int sr_count;
 EXTERN int search_text_len;
 EXTERN int replace_text_len;
-EXTERN int oldest_undo_pos;
-EXTERN int next_undo_pos;
 EXTERN int help_page;
 EXTERN int decode_page;
 EXTERN int undo_cnt;
+EXTERN int undo_malloc_cnt;
 EXTERN int total_updates;
 EXTERN int total_inserts;
 EXTERN int total_deletes;
@@ -168,7 +177,6 @@ EXTERN u_char *mem_search_find_start;
 EXTERN u_char *mem_search_find_end;
 EXTERN u_char *mem_undo_reset;
 EXTERN u_char *mem_decode_view;
-EXTERN u_char insert_char;
 EXTERN u_char sr_text[CMD_TEXT_SIZE+1];
 EXTERN u_char search_text[CMD_TEXT_SIZE+1];
 EXTERN u_char replace_text[CMD_TEXT_SIZE+1];
@@ -193,7 +201,7 @@ void clearScreen();
 void clearLine(int y);
 void locate(int x, int y);
 void setPaneStart(u_char *mem_pos);
-void positionCursor();
+void positionCursor(int draw_line1);
 void setCursorType(int type);
 void scrollUp();
 void scrollDown();
@@ -212,15 +220,17 @@ void mapFile();
 void setFileName(char *name);
 int  saveFile(char *name);
 void changeFileData(u_char c);
-void insertAtCursorPos();
-void deleteAtCursorPos();
+void insertAtCursorPos(u_char c, int add_undo);
+void deleteAtCursorPos(int add_undo);
 void findText();
 void doSearchAndReplace();
 
 /* undo.c */
-void initUndo(int do_free);
-void addUndo(u_char *ptr, int str_len);
+void initUndo();
+void addUndo(int type, u_char *ptr, int str_len);
+void resetUndoPointersAfterRealloc(u_char *new_mem_start);
 void undo();
+
 
 /* printf.c */
 void errprintf(const char *fmt, ...);

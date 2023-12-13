@@ -212,13 +212,15 @@ void readKeyboard()
 			case ESC_CON_F3:
 			case ESC_TERM_F3:
 			case ESC_INSERT:
-				if (term_pane != PANE_CMD) insertAtCursorPos();
+				flags.insert_mode = !flags.insert_mode;
+				drawBanner(BAN_LINE3);
+				positionCursor(0);
 				break;
 
 			case ESC_CON_F4:
 			case ESC_TERM_F4:
 			case ESC_DELETE:
-				if (term_pane != PANE_CMD) deleteAtCursorPos();
+				if (term_pane != PANE_CMD) deleteAtCursorPos(1);
 				break;
 
 			case ESC_CON_F5:
@@ -239,12 +241,9 @@ void readKeyboard()
 				break;
 
 			case ESC_TERM_F8:
-				if (term_type != TERM_VT)
-				{
-					setCursorType((cursor_type + 1) % NUM_CURSOR_TYPES);
-					drawBanner(BAN_LINE_S_C);
-					positionCursor();
-				}
+				setCursorType((cursor_type + 1) % NUM_CURSOR_TYPES);
+				drawBanner(BAN_LINE4);
+				positionCursor(0);
 				break;
 
 			case ESC_SHIFT_HOME:
@@ -287,8 +286,8 @@ void quit()
 void switchPane()
 {
 	term_pane = (term_pane + 1) % NUM_PANES;
-	drawBanner(BAN_LINE_S_C);
-	positionCursor();
+	drawBanner(BAN_LINE3);
+	positionCursor(0);
 }
 
 
@@ -303,7 +302,7 @@ void cursorUp()
 		if (mem_cursor < mem_start) mem_cursor = mem_start;
 
 		if (mem_cursor < mem_pane_start) scrollUp();
-		positionCursor();
+		positionCursor(1);
 	}
 }
 
@@ -315,7 +314,7 @@ void cursorDown()
 	mem_cursor += term_pane_cols;
 	if (mem_cursor > mem_end) mem_cursor = mem_end;
 	if (mem_cursor > mem_pane_end) scrollDown();
-	positionCursor();
+	positionCursor(1);
 }
 
 
@@ -326,7 +325,7 @@ void cursorLeft()
 	if (term_pane == PANE_HEX && flags.cur_hex_right)
 	{
 		flags.cur_hex_right = 0;
-		positionCursor();
+		positionCursor(1);
 	}
 	else if (mem_cursor > mem_start)
 	{
@@ -337,7 +336,7 @@ void cursorLeft()
 			mem_pane_start = mem_cursor;
 			drawScreen();
 		}
-		else positionCursor();
+		else positionCursor(1);
 	}
 }
 
@@ -349,17 +348,17 @@ void cursorRight()
 	if (term_pane == PANE_HEX && !flags.cur_hex_right)
 	{
 		flags.cur_hex_right = 1;
-		positionCursor();
+		positionCursor(1);
 	}
 	else if (mem_cursor < mem_end)
 	{
 		flags.cur_hex_right = 0;
 		++mem_cursor;
-		positionCursor();
+		positionCursor(1);
 		if (mem_cursor > mem_pane_end)
 		{
 			scrollDown();
-			positionCursor();
+			positionCursor(1);
 		}
 	}
 }
@@ -386,7 +385,7 @@ void runCommand(u_char c)
 		goto LOOP;
 	}
 	drawCmdPane();
-	positionCursor();
+	positionCursor(0);
 }
 
 
@@ -404,7 +403,6 @@ void stateCmd(u_char c)
 
 	resetCommand();
 	user_cmd = toupper(c);
-	drawCmdPane();
 
 	switch(user_cmd)
 	{
@@ -469,7 +467,7 @@ void stateCmd(u_char c)
 	case 'Z':
 		sr_count = 0;
 		cmd_state = STATE_TEXT;
-		drawBanner(BAN_LINE_T_SR);
+		drawBanner(BAN_LINE4);
 		sr_state = (user_cmd == 'Z' ? SR_STATE_HEX1 : SR_STATE_TEXT1);
 		break;
 	default:

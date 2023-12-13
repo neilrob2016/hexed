@@ -13,7 +13,7 @@ void clearCommandText()
 void resetCommand()
 {
 	clearCommandText();
-	cmd_state = STATE_CMD;
+	prev_cmd_state = cmd_state = STATE_CMD;
 	sr_state = SR_STATE_NONE;
 
 	/* Want to get rid of decode highlighting when we reset the command */
@@ -30,7 +30,7 @@ void resetCommand()
 void version()
 {
         colprintf("~BM~FW*** HEXED ***\n\n");
-        colprintf("~FTCopyright (C) Neil Robertson 2022\n\n");
+        colprintf("~FTCopyright (C) Neil Robertson 2022-2023\n\n");
 	colprintf("~FYVersion~RS   : %s\n",VERSION);
 	colprintf("~FGBuild date~RS: %s",BUILD_DATE);
 }

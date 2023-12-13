@@ -1,4 +1,3 @@
+still too many redraws particularly with undo
 search and replace
 	allow different length old and new strings (ie insert/delete bytes)
-too many redraws with positionCursor()
-undo insert/delete

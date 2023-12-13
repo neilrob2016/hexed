@@ -1,5 +1,6 @@
 #include "globals.h"
 
+#define MAX_UNDO_COL     21
 #define GET_PRINTABLE(C) (IS_PRINTABLE(C) ? C : substitute_char)
 
 #define PROMPT "Command or TAB ('H' for help): "
@@ -45,8 +46,8 @@ void drawScreen()
 			{
 				/* Put decode first as it'll be more transient
 				   than a search */
-				if (ptr >= mem_decode_view &&
-				         ptr <= mem_decode_end)
+				if (ptr >= mem_decode_view && 
+				    ptr <= mem_decode_end)
 				{
 					colprintf("~BM~FW%02X~RS ",*ptr);
 				}
@@ -115,7 +116,7 @@ void drawScreen()
 
 	drawUndoList();
 	drawCmdPane();
-	positionCursor();
+	positionCursor(1);
 }
 
 
@@ -127,15 +128,19 @@ int drawBanner(int line_flags)
 	{
 		"HEX ","TEXT","CMD "
 	};
-	const char *cursor_name[NUM_TERM_TYPES-1][NUM_CURSOR_TYPES] =
+	const char *cursor_name[NUM_TERM_TYPES][NUM_CURSOR_TYPES] =
 	{
 		/* Xterm and MacOS */
-		{ "BLOCK","BAR",       "UNDERLINE" },
+		{ "BLK ","BAR ","UL  " },
 
 		/* Linux console */
-		{ "BLOCK","HALF_BLOCK","UNDERLINE" }
+		{ "BLK ","HBLK","UL  " },
+
+		/* Can't change here on a hardware terminal */
+		{ "----","----","----" }
 	};
-	u_char undo_value;
+	char text[100];
+	st_undo *ud;
 	char stype;
 	int i;
 
@@ -147,31 +152,44 @@ int drawBanner(int line_flags)
 		return 0;
 	}
 
-	if (line_flags & BAN_LINE_F_F)
+	if (line_flags & BAN_LINE1)
 	{
 		clearLine(0);
 		locate(0,0);
-		colprintf("~RS~BM~FWFile position    :~RS %-9lu    ~BB~FWFilename     :~RS %s\n",
-			(u_long)(mem_cursor - mem_start),filename);
+		snprintf(text,sizeof(text),"%lu/%lu",
+			(u_long)(mem_cursor - mem_start),
+			(u_long)(mem_end - mem_start));
+		colprintf("~RS~BM~FWFile position    :~RS %-20s ",text);
+		colprintf("~BB~FWFilename     :~RS %s\n",filename);
 	}
 
-	if (line_flags & BAN_LINE_U_S)
+	if (line_flags & BAN_LINE2)
 	{
 		clearLine(1);
 		locate(0,1);
-		colprintf("~BR~FWUndo cnt/val (F5):~RS %-2d",undo_cnt);
+		colprintf("~BR~FWUndo cnt/val (F5):~RS %-4d",undo_cnt);
 		if (undo_cnt)
 		{
-			if (undo_list[next_undo_pos].str_len)
-				colprintf("~FT,~RS[S&R]     ");
-			else
+			ud = &undo_list[undo_cnt-1];
+			switch(ud->type)
 			{
-				undo_value = undo_list[next_undo_pos].prev_char;
-				colprintf("~FT,~RS0x%02X/'%c'  ",
-					undo_value,GET_PRINTABLE(undo_value));
+			case UNDO_CHAR:
+			case UNDO_DELETE:
+				colprintf("~FT,~RS0x%02X/'%c'        ",
+					ud->prev_char,
+					GET_PRINTABLE(ud->prev_char));
+				break;
+			case UNDO_INSERT:
+				colprintf("~FT,~RS[insert]        ");
+				break;
+			case UNDO_STR:
+				colprintf("~FT,~RS[S&R]           ");
+				break;
+			default:
+				assert(0);
 			}
 		}
-		else printf("           ");
+		else printf("                 ");
 
 		if (flags.search_hex) stype = 'X';
 		else if (flags.search_ign_case) stype = 'I';
@@ -192,31 +210,27 @@ int drawBanner(int line_flags)
 		else puts(search_text_len ? (char *)search_text : "");
 	}
 
-	if (line_flags & BAN_LINE_S_C)
+	if (line_flags & BAN_LINE3)
 	{
 		clearLine(2);
 		locate(0,2);
 		colprintf("~BY~FWScreen pane (Tab):~RS %s",pane_name[term_pane]);
-
-		/* Not supported by VT types */
-		if (term_type != TERM_VT)
-		{
-			colprintf("         ~BG~FWCursor   (F8):~RS %s",
-				cursor_name[term_type][cursor_type]);
-		}
+		colprintf("                 ~BG~FWMode     (F3):~RS %s",
+			flags.insert_mode ? "INSERT" : "OVERWRITE");
 	}
-	if (line_flags & BAN_LINE_T_SR)
+	if (line_flags & BAN_LINE4)
 	{
 		clearLine(3);
 		locate(0,3);
-		colprintf("~BB~FWTerm & pane size :~RS %dx%d~FT,~RS%dx%d",
+		colprintf("~BB~FWT&P size & cursor:~RS ");
+		snprintf(text,sizeof(text),"%dx%d,%dx%d,%s",
 			term_width,
 			term_height,
 			term_pane_cols,
-			term_height - BAN_PANE_HEIGHT - CMD_PANE_HEIGHT - 2);
+			term_height - BAN_PANE_HEIGHT - CMD_PANE_HEIGHT - 2,
+			cursor_name[term_type][cursor_type]);
 
-		locate(32,3);
-		colprintf("~BM~FWS&R count    :~RS %d",sr_count);
+		colprintf("%-20s ~BM~FWS&R count    :~RS %d",text,sr_count);
 	}
 	return 1;
 }
@@ -297,8 +311,8 @@ void drawCmdPane()
 			colprintf("~FMSaving as:~RS %s\n",filename);
 			break;
 		case 'G':
-			cmd_x += 15;
-			colprintf("~FMFile position:~RS %s",cmd_text);
+			cmd_x += 21;
+			colprintf("~FMGo to file position:~RS %s",cmd_text);
 			break;
 		case 'I':
 			cmd_x += 30;
@@ -403,7 +417,8 @@ void drawCmdPane()
 		break;
 
 	case STATE_ERR_UNDO:
-		errprintf("No more undos.");
+		colprintf("~BM~FW*** No more undos ***~RS");
+		flags.clear_no_undo = 1;
 		break;
 
 	case STATE_ERR_DATA_VIEW:
@@ -424,23 +439,21 @@ void drawCmdPane()
 void drawUndoList()
 {
 	/* Oldest to newest change */
-	char *undo_col[MAX_UNDO] =
+	char *undo_col[MAX_UNDO_COL] =
 	{
-		"FB","FB","FB","FB","FB",
-		"FB","FB","FB","FB","FB",
-		"FB","FB","FB","FB","FB",
+		"FR","FM","FM","FY","FY",
+		"FY","FG","FG","FG","FG",
 		"FT","FT","FT","FT","FT",
-		"FG","FG","FG","FG","FY",
-		"FY","FY","FR","FR","FM"
+		"FB","FB","FB","FB","FB",
+		"FB"
 	};
-	struct st_undo *ul;
+	st_undo *ud;
 	u_char *save_cursor;
 	u_char *ptr;
 	u_char c;
 	char *colstr;
 	int save_pane;
 	int save_right;
-	int pos;
 	int colpos;
 	int cnt;
 	int i;
@@ -448,40 +461,29 @@ void drawUndoList()
 
 	if (!undo_cnt) return;
 
-	/* Draw from oldest first so if we have 2 values that are the
-	   same we overwrite with newest */
+	/* Draw from oldest first so if we have 2 locations that are the same
+	   place we overwrite with newest */
 	save_cursor = mem_cursor;
 	save_pane = term_pane;
 	save_right = flags.cur_hex_right;
 	flags.cur_hex_right = 0;
+	colpos = undo_cnt - 1;
 
-	/* Always start at magenta even if we only have 1 entry so far */
-	colpos = MAX_UNDO - undo_cnt;
-
-	for(i=0,pos=oldest_undo_pos;i <= undo_cnt;++i)
+	for(i=0;i < undo_cnt;++i)
 	{
-		ul = &undo_list[pos];
-		if (i)
-		{
-			ptr = ul->mem_pos;
-			pos=(pos+1) % MAX_UNDO;
-			cnt = (ul->str_len ? ul->str_len : 1);
-		}
-		else
-		{
-			/* Have to specifically redraw in standard colour the
-			   value thats dropped off the end of the undo list */
-			if (!mem_undo_reset) continue;
-			ptr = mem_undo_reset;
-			cnt = (undo_reset_str_len ? undo_reset_str_len : 1);
-		}
-
+		ud = &undo_list[i];
+		ptr = ud->mem_pos;
+		cnt = (ud->type == UNDO_STR ? ud->str_len : 1);
+		
 		/* If we're not using colour we don't need to highlight colour
-		   in anything, just print latest update */
-		if (!flags.use_colour && i < undo_cnt) continue;
-		if (ptr < mem_pane_start || ptr > mem_pane_end)
+		   in anything, just print the last undo character */
+		if (!flags.use_colour && i != undo_cnt - 1) continue;
+
+		/* Can't draw colours for a delete */
+		if (ud->type == UNDO_DELETE || 
+		    ptr < mem_pane_start || ptr > mem_pane_end)
 		{
-			if (i) ++colpos;
+			--colpos;
 			continue;
 		}
 
@@ -489,26 +491,17 @@ void drawUndoList()
 		{
 			mem_cursor = ptr;
 			term_pane = PANE_HEX;
-			positionCursor();
-			if (i)
-			{
-				colstr = undo_col[colpos];
-				colprintf("~%s%02X ",colstr,*ptr);
-			}
-			else colprintf("~RS%02X ",*ptr);
+			positionCursor(0);
+			colstr = (colpos < MAX_UNDO_COL ? undo_col[colpos] : "FW");
+			colprintf("~%s%02X ",colstr,*ptr);
 
 			term_pane = PANE_TEXT;
-			positionCursor();
+			positionCursor(0);
 			c = *ptr;
-			if (i)
-			{
-				colstr = undo_col[colpos];
-				colprintf("~%s%c",colstr,GET_PRINTABLE(c));
-			}
-			else colprintf("~RS%c",GET_PRINTABLE(c));
+			colprintf("~%s%c",colstr,GET_PRINTABLE(c));
 		}
 
-		if (i) ++colpos;
+		--colpos;
 	}
 	colprintf("~RS");
 	mem_cursor = save_cursor;
@@ -723,7 +716,7 @@ void drawHelp()
 	{
 		colprintf("~BM~FW*** Function keys ***\n");
 		colprintf("~FYF1:~RS Page up   ~FYF2:~RS Page down   ~FYF3:~RS Insert   ~FYF4:~RS Delete\n");
-		colprintf("~FYF5:~RS Undo      ~FYF6:~RS Search      ~FYF7:~RS Decode   ~FYF8:~RS Cursor type\n");
+		colprintf("~FYF5:~RS Undo      ~FYF6:~RS Search      ~FYF7:~RS Decode   ~FYF8:~RS Change cursor type\n");
 		colprintf("~FGPress 'H' again for commands...");
 	}
 }

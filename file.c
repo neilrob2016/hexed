@@ -95,12 +95,16 @@ int saveFile(char *name)
 void changeFileData(u_char c)
 {
 	assert(mem_cursor >= mem_start && mem_cursor <= mem_end);
+
 	if (term_pane == PANE_TEXT)
 	{
 		if (!IS_PRINTABLE(c)) return;
-
-		addUndo(mem_cursor,0);
-		*mem_cursor = c;
+		if (flags.insert_mode) insertAtCursorPos(c,1);
+		else
+		{
+			addUndo(UNDO_CHAR,mem_cursor,0);
+			*mem_cursor = c;
+		}
 		++total_updates;
 
 		drawUndoList();
@@ -109,9 +113,9 @@ void changeFileData(u_char c)
 		else
 		{
 			/* Update Undo banner line */
-			drawBanner(BAN_LINE_U_S);
+			drawBanner(BAN_LINE2);
 			if (user_cmd == 'F') drawCmdPane();
-			positionCursor();
+			positionCursor(1);
 		}
 		return;
 	}
@@ -124,7 +128,7 @@ void changeFileData(u_char c)
 
 	if (flags.cur_hex_right)
 	{
-		addUndo(mem_cursor,0);
+		addUndo(UNDO_CHAR,mem_cursor,0);
 		/* 2nd/right nibble of hex value */
 		*mem_cursor = (c & 0x0F) | (*mem_cursor & 0xF0);
 		drawUndoList();
@@ -137,16 +141,21 @@ void changeFileData(u_char c)
 	}
 	else
 	{
-		addUndo(mem_cursor,0);
-		*mem_cursor = (c << 4) | (*mem_cursor & 0x0F);
+		c = (c << 4) | (*mem_cursor & 0x0F);
+		if (flags.insert_mode) insertAtCursorPos(c,1);
+		else
+		{
+			addUndo(UNDO_CHAR,mem_cursor,0);
+			*mem_cursor = c;
+		}
 		drawUndoList();
 		if (user_cmd == 'F') drawCmdPane();
 	}
 	flags.cur_hex_right = !flags.cur_hex_right;
 	++total_updates;
 
-	drawBanner(BAN_LINE_U_S);
-	positionCursor();
+	drawBanner(BAN_LINE2);
+	positionCursor(1);
 }
 
 
@@ -154,7 +163,7 @@ void changeFileData(u_char c)
 
 /*** Insert zero at the current cursor position and shift rest of file up
      1 character ***/
-void insertAtCursorPos()
+void insertAtCursorPos(u_char c, int add_undo)
 {
 	u_char *ptr;
 
@@ -166,6 +175,7 @@ void insertAtCursorPos()
 		assert(ptr);
 
 		/* Reset all pointers */
+		resetUndoPointersAfterRealloc(ptr);
 		mem_cursor = ptr + (mem_cursor - mem_start);
 		mem_pane_start = ptr + (mem_pane_start - mem_start);
 		mem_start = ptr;
@@ -174,13 +184,12 @@ void insertAtCursorPos()
 
 	/* Move everything up 1 char from the cursor position */
 	for(ptr=mem_end+1;ptr > mem_cursor;--ptr) *ptr = *(ptr-1);
-	*mem_cursor = insert_char;
+	*mem_cursor = c;
 	++file_size;
 	++mem_end;
 	++total_inserts;
 
-	/* Stored pointers will be invalid now */
-	initUndo(1);
+	if (add_undo) addUndo(UNDO_INSERT,mem_cursor,0);
 	mem_decode_view = NULL;
 
 	/* Sets mem_pane_end */
@@ -193,24 +202,23 @@ void insertAtCursorPos()
 /*** Delete the character at the cursor position. No realloc and 
      file_malloc_size unchanged since in case of insert afterwards we can use
      the already reserved memory ***/
-void deleteAtCursorPos()
+void deleteAtCursorPos(int add_undo)
 {
 	u_char *ptr;
 
+	if (mem_start >= mem_end) return;
+
 	/* Leave 1 char left */
-	if (mem_start < mem_end) 
-	{
-		for(ptr=mem_cursor;ptr < mem_end;++ptr) *ptr = *(ptr+1);
-		--mem_end;
-		if (mem_cursor > mem_end) mem_cursor = mem_end;
-		--file_size;
-		++total_deletes;
+	if (add_undo) addUndo(UNDO_DELETE,mem_cursor,0);
 
-		initUndo(1);
+	for(ptr=mem_cursor;ptr < mem_end;++ptr) *ptr = *(ptr+1);
+	--mem_end;
+	if (mem_cursor > mem_end) mem_cursor = mem_end;
+	--file_size;
+	++total_deletes;
 
-		/* Sets mem_pane_end */
-		drawScreen();
-	}
+	/* Sets mem_pane_end */
+	drawScreen();
 }
 
 
@@ -465,7 +473,7 @@ void doSearchAndReplace()
 		/* Note that there will be an individual undo for each piece
 		   of text that is replaced so a single search and replace 
 		   could max out the undo list */
-		addUndo(ptr,replace_text_len);
+		addUndo(UNDO_STR,ptr,replace_text_len);
 		memcpy(ptr,replace_text,replace_text_len);
 		search_start = ptr + 1;
 	}

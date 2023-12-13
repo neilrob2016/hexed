@@ -1,7 +1,7 @@
 #include "globals.h"
 
 #define DEF_TERM_WIDTH  80
-#define DEF_TERM_HEIGHT 24
+#define DEF_TERM_HEIGHT 25
 
 
 void parseTerminalSize(char *str)
@@ -137,7 +137,7 @@ void setPaneStart(u_char *mem_pos)
 
 
 /*** Move cursor to point on screen defined by mem_cursor ***/
-void positionCursor()
+void positionCursor(int draw_line1)
 {
 	int dist;
 	int cx;
@@ -145,7 +145,7 @@ void positionCursor()
 	int x;
 
 	/* Update file position in banner */
-	if (!drawBanner(BAN_LINE_F_F)) return;
+	if (draw_line1 && !drawBanner(BAN_LINE1)) return;
 
 	if (term_pane == PANE_CMD)
 	{
@@ -235,7 +235,7 @@ void pageUp()
 	{
 		mem_cursor = mem_pane_end - offset;
 		assert(mem_cursor >= mem_start);
-		positionCursor();
+		positionCursor(1);
 	}
 }
 

@@ -18,3 +18,13 @@
 20231206
 ========
 - Undo will now undo search and replace text as well as single characters.
+
+
+20131213
+========
+- Changed insert into an insert mode (toggle via F3) that means you can now
+  insert directly by typing instead of reserving space first.
+- Undo list now unlimited (except by memory) length
+- Undo will now undo inserts and deletes.
+- Header info updates including addition of file size and mode.
+- Removed some unnecessary screen redraws.

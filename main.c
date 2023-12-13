@@ -3,7 +3,7 @@
 
  A colour hex editor for Linux and MacOS.
 
- Written 2022
+ Initial version written in 2022
  *****************************************************************************/
 #define MAINFILE
 #include "globals.h"
@@ -51,7 +51,7 @@ void init()
 	resetCommand();
 	initKeyboard();
 	initSignals();
-	initUndo(0);
+	initUndo();
 }
 
 
@@ -61,7 +61,6 @@ void parseCmdLine(int argc, char **argv)
 {
 	char *val;
 	char c;
-	int len;
 	int i;
 
 	if (argc < 2) goto USAGE;
@@ -69,7 +68,6 @@ void parseCmdLine(int argc, char **argv)
 
 	filename = NULL;
 	term_pane = PANE_CMD;
-	insert_char = INSERT_CHAR; 
 	substitute_char = SUBSTITUTE_CHAR;
 
 	bzero(&flags,sizeof(flags));
@@ -86,6 +84,9 @@ void parseCmdLine(int argc, char **argv)
 
 		switch(c)
 		{
+		case 'i':
+			flags.insert_mode = 1;
+			continue;
 		case 'n':
 			flags.use_colour = 0;
 			continue;
@@ -107,17 +108,7 @@ void parseCmdLine(int argc, char **argv)
 			else if (!strcmp(val,"udl"))
 				setCursorType(CUR_UNDERLINE);
 			else if (!strcmp(val,"bar"))
-				setCursorType(CUR_HALF_BLOCK_BAR);
-			else goto USAGE;
-			break;
-		case 'i':
-			len = strlen(val);
-			if (len == 1) insert_char = (u_char)val[0];
-			else if (len == 2)
-			{
-				insert_char = strtol(val,NULL,16);
-				if (errno == EINVAL) goto USAGE;
-			}
+				setCursorType(CUR_HALF_BLOCK);
 			else goto USAGE;
 			break;
 		case 'p':
@@ -145,9 +136,6 @@ void parseCmdLine(int argc, char **argv)
 	USAGE:
 	printf("Usage: %s\n"
 	       "       -f <filename>\n"
-	       "       -i <insert char/hex> : One character is treated as ascii, two must be\n"
-	       "                              a valid hex value. Eg: X or 20.\n"
-	       "                              Default = '%c' (0x%02X)\n"
 	       "       -s <substitute char> : The substitute character in the text pane for\n"
 	       "                              unprintable characters. Must be printable itself.\n"
 	       "                              Default = '%c'\n"
@@ -156,11 +144,12 @@ void parseCmdLine(int argc, char **argv)
 	       "       -p <start pane>      : Options are 'hex','text' or 'cmd'.\n"
 	       "                              Default = 'cmd'\n"
 	       "       -x <width>x<height>  : Force terminal size. Eg: '80x25'\n"
+	       "       -i                   : Start in insert mode. Default = overwrite.\n"
 	       "       -n                   : No ANSI colour (will still use other ANSI\n"
 	       "                              terminal codes)\n"
 	       "       -v                   : Print version and build date then exit\n"
-	       "Note: All arguments are optional except -f\n",
-		argv[0],INSERT_CHAR,INSERT_CHAR,SUBSTITUTE_CHAR);
+	       "Note: All arguments are optional except -f.\n",
+		argv[0],SUBSTITUTE_CHAR);
 	exit(1);
 }
 
