@@ -40,7 +40,7 @@ void version()
 
 void doExit(int code)
 {
-	tcsetattr(STDIN,TCSANOW,&saved_tio);
+	tcsetattr(STDIN_FILENO,TCSANOW,&saved_tio);
 	colprintf("~RS");
 	exit(code);
 }

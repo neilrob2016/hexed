@@ -1,37 +1,5 @@
 #include "globals.h"
 
-#define DEF_TERM_WIDTH  80
-#define DEF_TERM_HEIGHT 25
-
-
-void parseTerminalSize(char *str)
-{
-	char *ptr = strchr(str,'x');
-
-	if (ptr && ptr > str)
-	{
-		term_width = atoi(str);
-		term_height = atoi(ptr+1);
-		if (term_width > 0 && term_height > 0) 
-		{
-			if (term_width < MIN_TERM_WIDTH || 
-			    term_height < MIN_TERM_HEIGHT)
-			{
-				errprintf("Terminal size too small. Minimum is %dx%d\n",
-					MIN_TERM_WIDTH,MIN_TERM_HEIGHT);
-				exit(1);
-			}
-			flags.fixed_term_size = 1;
-			return;
-		}
-	}
-	errprintf("Terminal size format is <width>x<height>.\n");
-	exit(1);
-}
-
-
-
-
 void getTermType()
 {
 	char *term = getenv("TERM");
@@ -84,7 +52,7 @@ void getTermSize()
 void clearScreen()
 {
 	/* [H makes the cursor go to home, ie 1,1 (or 0,0 using our co-ords) */
-	write(STDOUT,"\033[2J\033[H",7);
+	write(STDOUT_FILENO,"\033[2J\033[H",7);
 }
 
 
@@ -93,7 +61,7 @@ void clearScreen()
 void clearLine(int y)
 {
 	locate(0,y);
-	write(STDOUT,"\033[0K",4);
+	write(STDOUT_FILENO,"\033[0K",4);
 }
 
 
@@ -182,7 +150,7 @@ void setCursorType(int type)
 
 	if (term_type != TERM_VT)
 	{
-		write(STDOUT,code[term_type][type],5);
+		write(STDOUT_FILENO,code[term_type][type],5);
 		cursor_type = type;
 	}
 }

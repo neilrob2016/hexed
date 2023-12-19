@@ -143,5 +143,5 @@ void colprintf(const char *fmt, ...)
 	fflush(stdout);
 
 	/* Print it */
-	write(STDOUT,output,out_len);
+	write(STDOUT_FILENO,output,out_len);
 }

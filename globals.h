@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <time.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
@@ -18,10 +19,11 @@
 
 #include "build_date.h"
 
-#define VERSION "20231213"
+#define VERSION "20231219"
 
-#define STDIN           0
-#define STDOUT          1
+#define RC_FILENAME     ".hexedrc"
+#define DEF_TERM_WIDTH  80
+#define DEF_TERM_HEIGHT 25
 #define BAN_PANE_HEIGHT 4
 #define CMD_PANE_HEIGHT 7
 #define CMD_X_POS       9
@@ -114,13 +116,26 @@ enum
 
 struct st_flags
 {
+	/* Cmd line */
 	unsigned use_colour      : 1;
+	unsigned use_colour_set  : 1;
+	unsigned insert_mode     : 1;
+	unsigned insert_mode_set : 1;
+	unsigned termsize_set    : 1;
+	unsigned cursor_set      : 1;
+	unsigned pane_set        : 1;
+	unsigned subchar_set     : 1;
+
+	/* Rc file */
+	unsigned rc_use_colour   : 1;
+	unsigned rc_insert_mode  : 1;
+
+	/* Runtime */
 	unsigned cur_hex_right   : 1;
 	unsigned search_hex      : 1;
 	unsigned search_ign_case : 1;
 	unsigned search_wrapped  : 1;
 	unsigned fixed_term_size : 1;
-	unsigned insert_mode     : 1;
 	unsigned clear_no_undo   : 1;
 };
 
@@ -134,6 +149,12 @@ typedef struct
 	int cur_hex_right;
 } st_undo;
 
+/* Cmd line / rc file */
+EXTERN char substitute_char;
+EXTERN char *filename;
+EXTERN char *rc_filename;
+
+/* Runtime */
 EXTERN struct termios saved_tio;
 EXTERN struct stat file_stat;
 EXTERN struct st_flags flags;
@@ -182,8 +203,6 @@ EXTERN u_char search_text[CMD_TEXT_SIZE+1];
 EXTERN u_char replace_text[CMD_TEXT_SIZE+1];
 EXTERN char cmd_text[CMD_TEXT_SIZE+1];
 EXTERN char user_cmd;
-EXTERN char substitute_char;
-EXTERN char *filename;
 EXTERN time_t esc_time;
 
 /* keyboard.c */
@@ -193,8 +212,13 @@ void readKeyboard();
 /* signals.c */
 void initSignals();
 
+/* parse.c */
+void parseTerminalSize(char *str, int linenum);
+void parseTerminalPane(char *pane, int linenum);
+void parseCursorType(char *type, int linenum);
+void parseSubChar(char *val, int linenum);
+
 /* terminal.c */
-void parseTerminalSize(char *str);
 void getTermType();
 void getTermSize();
 void clearScreen();
@@ -224,6 +248,9 @@ void insertAtCursorPos(u_char c, int add_undo);
 void deleteAtCursorPos(int add_undo);
 void findText();
 void doSearchAndReplace();
+
+/* rcfile.c */
+void parseRCFile();
 
 /* undo.c */
 void initUndo();

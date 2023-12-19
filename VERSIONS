@@ -28,3 +28,8 @@
 - Undo will now undo inserts and deletes.
 - Header info updates including addition of file size and mode.
 - Removed some unnecessary screen redraws.
+
+
+20131219
+========
+- Added RC file functionality. See README for more info.

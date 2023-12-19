@@ -1,5 +1,5 @@
-Hexed
------
+Intro
+=====
 This is a colour command line hex editor for MacOS and Linux. To compile
 just type "make" then "hexed -f <filename>" to edit a file. Type 'H' to
 get a list of commands and function keys.
@@ -9,6 +9,21 @@ efficiency. The curses API is hideously long winded and given almost all
 virtual terminals now support ANSI there's little point in using curses.
 IMO YMMV.
 
-Neil Robertson, March 2022
+RC file
+=======
+As of version 20231219 I added a run command (RC) file option -r. This contains
+settings equivalent to the command line options. If no RC file is given hexed
+will attempt to read ~/.hexedrc but if its not there it carries on.
+
+Option    Valid values           Cmd line
+------    ------------           --------
+cursor    blk,udl,bar            -c
+mode      insert,overwrite       -i
+colour    on,off                 -n 
+pane      hex,text,cmd           -p
+subchar   <single char>          -s
+termsize  <width>x<height>       -x
+
+An example RC file is with the source called example_rc.
 
 neilrob2016@gmail.com

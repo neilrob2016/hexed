@@ -2,7 +2,7 @@ CC=cc -g
 ARGS=-Wall -Wextra -pedantic
 #ARGS=-Wall -pedantic
 DEPS=globals.h Makefile
-OBJS=main.o keyboard.o terminal.o draw.o signals.o file.o undo.o printf.o misc.o
+OBJS=main.o keyboard.o terminal.o draw.o signals.o file.o rcfile.o parse.o undo.o printf.o misc.o
 BIN=hexed
 
 $(BIN): build_date $(OBJS) Makefile
@@ -25,6 +25,12 @@ signals.o: signals.c $(DEPS)
 
 file.o: file.c $(DEPS)
 	$(CC) $(ARGS) -c file.c
+
+rcfile.o: rcfile.c $(DEPS)
+	$(CC) $(ARGS) -c rcfile.c
+
+parse.o: parse.c $(DEPS)
+	$(CC) $(ARGS) -c parse.c
 
 undo.o: undo.c $(DEPS)
 	$(CC) $(ARGS) -c undo.c

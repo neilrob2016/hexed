@@ -17,6 +17,7 @@ void mainloop();
 int main(int argc, char **argv)
 {
 	parseCmdLine(argc,argv);
+	parseRCFile();
 	init();
 	mapFile();
 	getTermSize();
@@ -65,8 +66,8 @@ void parseCmdLine(int argc, char **argv)
 
 	if (argc < 2) goto USAGE;
 
-
 	filename = NULL;
+	rc_filename = NULL;
 	term_pane = PANE_CMD;
 	substitute_char = SUBSTITUTE_CHAR;
 
@@ -86,9 +87,11 @@ void parseCmdLine(int argc, char **argv)
 		{
 		case 'i':
 			flags.insert_mode = 1;
+			flags.insert_mode_set = 1; /* Override rc setting */
 			continue;
 		case 'n':
 			flags.use_colour = 0;
+			flags.use_colour_set = 1;
 			continue;
 		case 'v':
 			versionExit();
@@ -103,29 +106,23 @@ void parseCmdLine(int argc, char **argv)
 			setFileName(val);
 			break;
 		case 'c':
-			if (!strcmp(val,"blk"))
-				setCursorType(CUR_BLOCK);
-			else if (!strcmp(val,"udl"))
-				setCursorType(CUR_UNDERLINE);
-			else if (!strcmp(val,"bar"))
-				setCursorType(CUR_HALF_BLOCK);
-			else goto USAGE;
+			parseCursorType(val,0);
+			flags.cursor_set = 1;
 			break;
 		case 'p':
-			if (!strcmp(val,"hex")) term_pane = PANE_HEX;
-			else if (!strcmp(val,"text")) term_pane = PANE_TEXT;
-			else if (!strcmp(val,"cmd")) term_pane = PANE_CMD;
-			else goto USAGE;
+			parseTerminalPane(val,0);
+			flags.pane_set = 1;
+			break;
+		case 'r':
+			rc_filename = argv[i];
 			break;
 		case 's':
-			if (strlen(val) == 1 && IS_PRINTABLE(val[0]))
-			{
-				substitute_char = val[0];
-				break;
-			}
-			goto USAGE;
+			parseSubChar(val,0);
+			flags.subchar_set = 1;
+			break;
 		case 'x':
-			parseTerminalSize(val);
+			parseTerminalSize(val,0);
+			flags.termsize_set = 1;
 			break;
 		default:
 			goto USAGE;
@@ -136,20 +133,22 @@ void parseCmdLine(int argc, char **argv)
 	USAGE:
 	printf("Usage: %s\n"
 	       "       -f <filename>\n"
-	       "       -s <substitute char> : The substitute character in the text pane for\n"
-	       "                              unprintable characters. Must be printable itself.\n"
-	       "                              Default = '%c'\n"
+	       "       -r <RC filename>     : Default = ~/%s\n"
 	       "       -c <cursor type>     : Options are 'blk','udl' and 'bar'\n"
 	       "                              Default = 'blk' (block)\n"
 	       "       -p <start pane>      : Options are 'hex','text' or 'cmd'.\n"
 	       "                              Default = 'cmd'\n"
+	       "       -s <substitute char> : The substitute character in the text pane for\n"
+	       "                              unprintable characters. Must be printable itself.\n"
+	       "                              Default = '%c'\n"
 	       "       -x <width>x<height>  : Force terminal size. Eg: '80x25'\n"
 	       "       -i                   : Start in insert mode. Default = overwrite.\n"
 	       "       -n                   : No ANSI colour (will still use other ANSI\n"
 	       "                              terminal codes)\n"
 	       "       -v                   : Print version and build date then exit\n"
-	       "Note: All arguments are optional except -f.\n",
-		argv[0],SUBSTITUTE_CHAR);
+	       "Note: All arguments are optional except -f and they override their equivalent\n"
+	       "      in the RC file.\n",
+		argv[0],RC_FILENAME,SUBSTITUTE_CHAR);
 	exit(1);
 }
 
@@ -177,7 +176,7 @@ void mainloop()
 	while(1)
 	{
 		FD_ZERO(&mask);
-		FD_SET(STDIN,&mask);
+		FD_SET(STDIN_FILENO,&mask);
 		switch(select(FD_SETSIZE,&mask,NULL,NULL,NULL))
 		{
 		case -1:

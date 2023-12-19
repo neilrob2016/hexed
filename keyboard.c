@@ -25,7 +25,7 @@ void initKeyboard()
 {
 	struct termios tio;
 
-	if (tcgetattr(STDIN,&tio) == -1)
+	if (tcgetattr(STDIN_FILENO,&tio) == -1)
 	{
 		syserrprintf("tcgetattr");
 		exit(1);
@@ -33,15 +33,14 @@ void initKeyboard()
 	saved_tio = tio;
 
 	/* Echo off, canonical off */
-	tio.c_lflag &= ~ECHO;
-	tio.c_lflag &= ~ICANON;
+	tio.c_lflag &= ~(ECHO | ICANON);
 
 	/* Min return 1 byte, no delay */
 	tio.c_cc[VMIN] = 1;
 	tio.c_cc[VTIME] = 0;
 
 	/* Set new state */
-	if (tcsetattr(STDIN,TCSANOW,&tio) == -1)
+	if (tcsetattr(STDIN_FILENO,TCSANOW,&tio) == -1)
 	{
 		syserrprintf("tcsetattr");
 		doExit(1);
@@ -147,7 +146,7 @@ void readKeyboard()
 	int i;
 
 	/* Escape codes will be returned in one go */
-	switch((len = read(STDIN,s,sizeof(s)-1)))
+	switch((len = read(STDIN_FILENO,s,sizeof(s)-1)))
 	{
 	case -1:
 		syserrprintf("read");
