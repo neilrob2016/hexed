@@ -25,6 +25,9 @@ void initKeyboard()
 {
 	struct termios tio;
 
+	printf("Initialising keyboard... ");
+	fflush(stdout);
+
 	if (tcgetattr(STDIN_FILENO,&tio) == -1)
 	{
 		syserrprintf("tcgetattr");
@@ -45,6 +48,7 @@ void initKeyboard()
 		syserrprintf("tcsetattr");
 		doExit(1);
 	}
+	printok();
 }
 
 
@@ -333,7 +337,7 @@ void cursorLeft()
 		if (mem_cursor < mem_pane_start)
 		{
 			mem_pane_start = mem_cursor;
-			drawScreen();
+			drawMain();
 		}
 		else positionCursor(1);
 	}
@@ -412,7 +416,7 @@ void stateCmd(u_char c)
 	case 'C':
 		flags.use_colour = !flags.use_colour;
 		clearScreen();
-		drawScreen();
+		drawMain();
 		break;
 	case 'D':
 		setDecodeView();
@@ -439,7 +443,7 @@ void stateCmd(u_char c)
 		break;
 	case 'R':
 		clearScreen();
-		drawScreen();
+		drawMain();
 		break;
 	case 'G':
 	case 'S':
@@ -454,7 +458,7 @@ void stateCmd(u_char c)
 		break;
 	case 'U':
 		undo();
-		drawScreen();
+		drawMain();
 		break;
 	case 'X':
 		flags.search_ign_case = 0;
@@ -636,5 +640,5 @@ void setDecodeView()
 	else mem_decode_view = mem_cursor;
 	decode_page = !decode_page;
 
-	drawScreen();
+	drawMain();
 }

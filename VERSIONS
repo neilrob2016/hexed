@@ -20,7 +20,7 @@
 - Undo will now undo search and replace text as well as single characters.
 
 
-20131213
+20231213
 ========
 - Changed insert into an insert mode (toggle via F3) that means you can now
   insert directly by typing instead of reserving space first.
@@ -30,6 +30,14 @@
 - Removed some unnecessary screen redraws.
 
 
-20131219
+20231219
 ========
 - Added RC file functionality. See README for more info.
+
+
+20231227
+========
+- Hexed can now start without a file being given with -f. In this instance it
+  allocates a single byte in memory and sets it to zero.
+- Reduced amount of unnecessary redraws.
+- More efficient memory allocation.

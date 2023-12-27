@@ -1,6 +1,7 @@
 #include "globals.h"
 
-#define BLOCK_SIZE  1000
+#define ALLOC_BLOCK_LEN 10
+#define FILE_BLOCK_LEN  1000
 
 /*** This would use memory mapping except that is awkward when you want to
      insert data into the file and enlarge it ***/
@@ -12,26 +13,54 @@ void mapFile()
 	ssize_t len;
 	int fd;
 
-	if ((fd = open(filename,O_RDONLY)) == -1)
+	if (filename)
 	{
-		syserrprintf("open");
-		doExit(1);
+		printf("Opening file \"%s\"... ",filename);
+		fflush(stdout);
+
+		if ((fd = open(filename,O_RDONLY)) == -1)
+		{
+			syserrprintf("open");
+			doExit(1);
+		}
+		if (fstat(fd,&file_stat) == -1)
+		{
+			syserrprintf("fstat");
+			doExit(1);
+		}
+		file_malloc_size = (u_long)file_stat.st_size;
 	}
-	if (fstat(fd,&file_stat) == -1)
+	else
 	{
-		syserrprintf("fstat");
-		doExit(1);
+		printf("Initialising memory... ");
+		bzero(&file_stat,sizeof(file_stat));
+		file_stat.st_mode = 0644; /* For file save option */
+		file_stat.st_size = 1;
+		file_malloc_size = ALLOC_BLOCK_LEN;
+
+		/* If mode not set to overwrite in RC file then set to insert
+		   mode (not much point in having overwrite mode with 1 byte) */
+		if (!flags.rc_overwrite_mode_set) flags.insert_mode = 1;
 	}
-	file_size = file_malloc_size = (u_long)file_stat.st_size;
+	printok();
+
+	file_size = (u_long)file_stat.st_size;
 	mem_start = (u_char *)malloc(file_malloc_size);
 	assert(mem_start);
 	mem_end = mem_start + file_stat.st_size - 1;
 	mem_cursor = mem_pane_start = mem_start;
 
+	if (!filename)
+	{
+		/* Init single allocated byte to zero */
+		*mem_start = 0;
+		return;
+	}
+
 	for(ptr=mem_start;ptr <= mem_end;ptr+=len)
 	{
 		dist = (u_long)(mem_end - ptr + 1);
-		len = (size_t)(dist < BLOCK_SIZE ? dist : BLOCK_SIZE);
+		len = (size_t)(dist < FILE_BLOCK_LEN ? dist : FILE_BLOCK_LEN);
 		rlen = read(fd,ptr,len);
 		if (rlen == -1)
 		{
@@ -71,11 +100,12 @@ int saveFile(char *name)
 	if ((fd = open(name,O_WRONLY | O_CREAT,file_stat.st_mode)) == -1)
 		return 0;
 	setFileName(name);
+	drawBanner(BAN_LINE1);
 
 	for(ptr=mem_start;ptr <= mem_end;ptr += len)
 	{
 		dist = (u_long)(mem_end - ptr + 1);
-		len = (dist < BLOCK_SIZE ? dist : BLOCK_SIZE);
+		len = (dist < FILE_BLOCK_LEN ? dist : FILE_BLOCK_LEN);
 		if (write(fd,ptr,len) == -1)
 		{
 			err = errno;
@@ -107,12 +137,14 @@ void changeFileData(u_char c)
 		}
 		++total_updates;
 
-		drawUndoList();
+		/* scrollDown() calls drawMain() which calls drawUndoList()
+		   so don't need to call it manually here */
 		if (mem_cursor < mem_end && ++mem_cursor > mem_pane_end)
 			scrollDown();
 		else
 		{
-			/* Update Undo banner line */
+			/* Update Undo info */
+			drawUndoList();
 			drawBanner(BAN_LINE2);
 			if (user_cmd == 'F') drawCmdPane();
 			positionCursor(1);
@@ -131,13 +163,15 @@ void changeFileData(u_char c)
 		addUndo(UNDO_CHAR,mem_cursor,0);
 		/* 2nd/right nibble of hex value */
 		*mem_cursor = (c & 0x0F) | (*mem_cursor & 0xF0);
-		drawUndoList();
 
 		/* Have we gone off the bottom? */
 		if (mem_cursor < mem_end && ++mem_cursor > mem_pane_end)
 			scrollDown();
-		else if (user_cmd == 'F')
-			drawCmdPane();
+		else
+		{
+			drawUndoList();
+			if (user_cmd == 'F') drawCmdPane();
+		}
 	}
 	else
 	{
@@ -147,8 +181,8 @@ void changeFileData(u_char c)
 		{
 			addUndo(UNDO_CHAR,mem_cursor,0);
 			*mem_cursor = c;
+			drawUndoList();
 		}
-		drawUndoList();
 		if (user_cmd == 'F') drawCmdPane();
 	}
 	flags.cur_hex_right = !flags.cur_hex_right;
@@ -170,7 +204,7 @@ void insertAtCursorPos(u_char c, int add_undo)
 	/* See if we need to realloc first */
 	if (file_size == file_malloc_size)
 	{
-		++file_malloc_size;
+		file_malloc_size += ALLOC_BLOCK_LEN;
 		ptr = (u_char *)realloc(mem_start,file_malloc_size);
 		assert(ptr);
 
@@ -193,15 +227,15 @@ void insertAtCursorPos(u_char c, int add_undo)
 	mem_decode_view = NULL;
 
 	/* Sets mem_pane_end */
-	drawScreen();
+	drawMain();
 }
 
 
 
 
-/*** Delete the character at the cursor position. No realloc and 
-     file_malloc_size unchanged since in case of insert afterwards we can use
-     the already reserved memory ***/
+/*** Delete the character at the cursor position. We don't change the size of
+     the allocated memory in case the user wants to do an insert elsewhere
+     hence file_malloc_size unchanged ***/
 void deleteAtCursorPos(int add_undo)
 {
 	u_char *ptr;
@@ -218,7 +252,7 @@ void deleteAtCursorPos(int add_undo)
 	++total_deletes;
 
 	/* Sets mem_pane_end */
-	drawScreen();
+	drawMain();
 }
 
 
@@ -370,7 +404,7 @@ void findText()
 	if (!(ptr = findSearchText(search_start)))
 	{
 		resetCommand();
-		if (mem_prev) drawScreen();
+		if (mem_prev) drawMain();
 		cmd_state = STATE_ERR_NOT_FOUND;
 		return;
 	}
@@ -386,7 +420,7 @@ void findText()
 
 	if (ptr < mem_pane_start || ptr > mem_pane_end)
 		setPaneStart(ptr);
-	drawScreen();
+	drawMain();
 	cmd_state = STATE_CMD;
 }
 
@@ -477,7 +511,7 @@ void doSearchAndReplace()
 		memcpy(ptr,replace_text,replace_text_len);
 		search_start = ptr + 1;
 	}
-	drawScreen();
+	drawMain();
 	resetCommand();
 	if (!sr_count) cmd_state = STATE_ERR_NOT_FOUND;
 	sr_state = SR_STATE_NONE;

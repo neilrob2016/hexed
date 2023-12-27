@@ -10,6 +10,9 @@ void parseRCFile()
 	int user_file = 0;
 	int linenum;
 
+	/* We'll only see the bootup messages if there's an error */
+	colprintf("~BM*** HEXED starting ***\n");
+
 	if (!rc_filename)
 	{
 		/* Should always be set but just in case... */
@@ -36,7 +39,7 @@ void parseRCFile()
 		colprintf("~FYWARNING:~RS %s\n",strerror(errno));
 		return;
 	}
-	colprintf("~FGOK\n");
+	printok();
 
 	printf("Reading RC file... ");
 	fflush(stdout);
@@ -48,7 +51,7 @@ void parseRCFile()
 		fgets(text,sizeof(text),fp);
 	}
 	fclose(fp);
-	colprintf("~FGOK\n");
+	printok();
 }
 
 
@@ -70,7 +73,13 @@ void parseLine(char *line, int linenum)
 		}
 		else if (!strcmp(val,"overwrite"))
 		{
-			if (!flags.insert_mode_set) flags.insert_mode = 0;
+			if (!flags.insert_mode_set)
+			{
+				flags.insert_mode = 0;
+				/* Set to override auto insert mode if no
+				   filename given */
+				flags.rc_overwrite_mode_set = 1;
+			}
 		}
 		else goto VAL_ERROR;
 	}

@@ -98,7 +98,7 @@ void setPaneStart(u_char *mem_pos)
 		assert(mem_pos >= mem_start);
 	}
 	mem_pane_start = mem_pos;
-	drawScreen();
+	drawMain();
 }
 
 
@@ -163,7 +163,7 @@ void scrollUp()
 	mem_pane_start -= term_pane_cols;
 	if (mem_pane_start < mem_start) mem_pane_start = mem_start;
 	mem_decode_view = NULL;
-	drawScreen();
+	drawMain();
 }
 
 
@@ -174,7 +174,7 @@ void scrollDown()
 	mem_pane_start += term_pane_cols;
 	if (mem_pane_start > mem_end) mem_pane_start = mem_end;
 	mem_decode_view = NULL;
-	drawScreen();
+	drawMain();
 }
 
 
@@ -198,7 +198,7 @@ void pageUp()
 
 	/* Call first as it sets mem_pane_end */
 	mem_decode_view = NULL;
-	drawScreen();
+	drawMain();
 	if (mem_cursor > mem_pane_end)
 	{
 		mem_cursor = mem_pane_end - offset;
@@ -227,5 +227,5 @@ void pageDown()
 		assert(mem_cursor <= mem_end);
 	}
 	mem_decode_view = NULL;
-	drawScreen();
+	drawMain();
 }

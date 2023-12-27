@@ -1,6 +1,7 @@
 # Example rc file. These options are overridden by the equivalent command 
 # line param.
-mode     insert
+#mode     insert
+mode     overwrite
 colour   off
 termsize 80x25
 cursor   udl

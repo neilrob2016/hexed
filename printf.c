@@ -145,3 +145,11 @@ void colprintf(const char *fmt, ...)
 	/* Print it */
 	write(STDOUT_FILENO,output,out_len);
 }
+
+
+
+
+void printok()
+{
+        colprintf("~FGOK\n");
+}

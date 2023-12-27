@@ -11,7 +11,7 @@ void drawHelp();
 void drawHorizontalLines();
 
 
-void drawScreen()
+void drawMain()
 {
 	u_char *line_start;
 	u_char *mem_decode_end;
@@ -115,7 +115,6 @@ void drawScreen()
 	if (mem_cursor > mem_pane_end) mem_cursor = mem_pane_end;
 
 	drawUndoList();
-	drawCmdPane();
 	positionCursor(1);
 }
 
@@ -160,7 +159,8 @@ int drawBanner(int line_flags)
 			(u_long)(mem_cursor - mem_start),
 			(u_long)(mem_end - mem_start));
 		colprintf("~RS~BM~FWFile position    :~RS %-20s ",text);
-		colprintf("~BB~FWFilename     :~RS %s\n",filename);
+		colprintf("~BB~FWFilename     :~RS %s\n",
+			filename ? filename : "");
 	}
 
 	if (line_flags & BAN_LINE2)
@@ -255,14 +255,15 @@ void drawCmdPane()
 		++cmd_x;
 		putchar(user_cmd);
 	}
-	else putchar(' ');
+	else write(STDOUT_FILENO," \b",2); /* Clear any command char */
 
 	if (cmd_state >= STATE_SAVE_OK) locate(0,term_textbox_y);
 
 	switch(cmd_state)
 	{
 	case STATE_CMD:
-		locate(0,term_textbox_y);
+		if (user_cmd) locate(0,term_textbox_y);
+
 		switch(user_cmd)
 		{
 		case 'C':
@@ -434,7 +435,7 @@ void drawCmdPane()
 
 
 
-/*** Can't put inline in drawScreen() as its called from file.c and is too
+/*** Can't put inline in drawMain() as its called from file.c and is too
      complicated anyway ***/
 void drawUndoList()
 {

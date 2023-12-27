@@ -20,7 +20,7 @@ void resetCommand()
 	if (mem_decode_view)
 	{
 		mem_decode_view = NULL;
-		drawScreen();
+		drawMain();
 	}
 }
 

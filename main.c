@@ -64,8 +64,6 @@ void parseCmdLine(int argc, char **argv)
 	char c;
 	int i;
 
-	if (argc < 2) goto USAGE;
-
 	filename = NULL;
 	rc_filename = NULL;
 	term_pane = PANE_CMD;
@@ -128,7 +126,7 @@ void parseCmdLine(int argc, char **argv)
 			goto USAGE;
 		}
 	}
-	if (filename) return;
+	return;
 
 	USAGE:
 	printf("Usage: %s\n"
@@ -146,8 +144,10 @@ void parseCmdLine(int argc, char **argv)
 	       "       -n                   : No ANSI colour (will still use other ANSI\n"
 	       "                              terminal codes)\n"
 	       "       -v                   : Print version and build date then exit\n"
-	       "Note: All arguments are optional except -f and they override their equivalent\n"
-	       "      in the RC file.\n",
+	       "Note:\n"
+	       "1) All arguments are optional and they override their equivalent in the RC file.\n"
+	       "2) If no filename is given a single byte is allocated and set to zero and the\n"
+	       "   mode is set to insert unless its set to overwrite in the RC file.\n",
 		argv[0],RC_FILENAME,SUBSTITUTE_CHAR);
 	exit(1);
 }
@@ -170,8 +170,13 @@ void mainloop()
 {
 	fd_set mask;
 
+	/* Will never normally see this unless the ANSI clear screen fails
+	   for some reason */
+	colprintf("~BG*** Initialised ***\n");
+
 	clearScreen();
-	drawScreen();
+	drawMain();
+	drawCmdPane();
 
 	while(1)
 	{
@@ -185,7 +190,8 @@ void mainloop()
 				/* Can only be SIGWINCH here so redraw */
 				getTermSize();
 				clearScreen();
-				drawScreen();
+				drawMain();
+				drawCmdPane();
 				continue;
 			}
 			syserrprintf("select");

@@ -19,7 +19,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20231219"
+#define VERSION "20231227"
 
 #define RC_FILENAME     ".hexedrc"
 #define DEF_TERM_WIDTH  80
@@ -117,14 +117,15 @@ enum
 struct st_flags
 {
 	/* Cmd line */
-	unsigned use_colour      : 1;
-	unsigned use_colour_set  : 1;
-	unsigned insert_mode     : 1;
-	unsigned insert_mode_set : 1;
-	unsigned termsize_set    : 1;
-	unsigned cursor_set      : 1;
-	unsigned pane_set        : 1;
-	unsigned subchar_set     : 1;
+	unsigned use_colour           : 1;
+	unsigned use_colour_set       : 1;
+	unsigned insert_mode          : 1;
+	unsigned insert_mode_set      : 1;
+	unsigned rc_overwrite_mode_set: 1;
+	unsigned termsize_set         : 1;
+	unsigned cursor_set           : 1;
+	unsigned pane_set             : 1;
+	unsigned subchar_set          : 1;
 
 	/* Rc file */
 	unsigned rc_use_colour   : 1;
@@ -233,7 +234,7 @@ void pageUp();
 void pageDown();
 
 /* draw.c */
-void drawScreen();
+void drawMain();
 int  drawBanner(int line_flags);
 void drawCmdPane();
 void drawUndoList();
@@ -263,6 +264,7 @@ void undo();
 void errprintf(const char *fmt, ...);
 void syserrprintf(char *func);
 void colprintf(const char *fmt, ...);
+void printok();
 
 /* misc.c */
 void clearCommandText();
