@@ -30,7 +30,7 @@ void resetCommand()
 void version()
 {
         colprintf("~BM~FW*** HEXED ***\n\n");
-        colprintf("~FTCopyright (C) Neil Robertson 2022-2023\n\n");
+        colprintf("~FTCopyright (C) Neil Robertson 2022-2024\n\n");
 	colprintf("~FYVersion~RS   : %s\n",VERSION);
 	colprintf("~FGBuild date~RS: %s",BUILD_DATE);
 }

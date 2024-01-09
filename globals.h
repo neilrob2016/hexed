@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <limits.h>
+#include <pwd.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
@@ -19,7 +20,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20231227"
+#define VERSION "20240109"
 
 #define RC_FILENAME     ".hexedrc"
 #define DEF_TERM_WIDTH  80
@@ -84,12 +85,15 @@ enum
 	STATE_TEXT,
 	STATE_YN,
 	STATE_SAVE_OK,
+	STATE_UPDATE_COUNT,
 
 	STATE_ERR_NOT_FOUND,
 	STATE_ERR_CMD,
 	STATE_ERR_SAVE,
+	STATE_ERR_INVALID_PATH,
 	STATE_ERR_INPUT,
 	STATE_ERR_NO_SEARCH_TEXT,
+	STATE_ERR_NO_FILENAME,
 	STATE_ERR_INVALID_HEX_LEN,
 	STATE_ERR_MUST_BE_SAME_LEN,
 	STATE_ERR_MUST_DIFFER,
@@ -114,18 +118,33 @@ enum
 	UNDO_DELETE
 };
 
+
+enum
+{
+	HELP_COM_1 = 0,
+	HELP_COM_2,
+	HELP_FKEYS,
+
+	NUM_HELP_PAGES
+};
+
+
 struct st_flags
 {
 	/* Cmd line */
-	unsigned use_colour           : 1;
-	unsigned use_colour_set       : 1;
-	unsigned insert_mode          : 1;
-	unsigned insert_mode_set      : 1;
-	unsigned rc_overwrite_mode_set: 1;
-	unsigned termsize_set         : 1;
-	unsigned cursor_set           : 1;
-	unsigned pane_set             : 1;
-	unsigned subchar_set          : 1;
+	unsigned use_colour             : 1;
+	unsigned use_colour_set         : 1;
+	unsigned insert_mode            : 1;
+	unsigned insert_mode_set        : 1;
+	unsigned rc_overwrite_mode_set  : 1;
+	unsigned subchar_set            : 1;
+	unsigned lowercase_hex          : 1;
+	unsigned lowercase_hex_set      : 1;
+	unsigned retain_preundo_pos     : 1;
+	unsigned retain_preundo_pos_set : 1;
+	unsigned termsize_set           : 1;
+	unsigned cursor_set             : 1;
+	unsigned pane_set               : 1;
 
 	/* Rc file */
 	unsigned rc_use_colour   : 1;
@@ -143,6 +162,7 @@ struct st_flags
 typedef struct
 {
 	int type;
+	int seq_start;
 	u_char *mem_pos;
 	u_char prev_char;
 	u_char *prev_str;
@@ -176,19 +196,21 @@ EXTERN int cmd_state;
 EXTERN int prev_cmd_state;
 EXTERN int cmd_text_len;
 EXTERN int sr_state;
-EXTERN int sr_text_len;
-EXTERN int sr_count;
+EXTERN int sr_cnt;
+EXTERN int hex_text_len;
 EXTERN int search_text_len;
 EXTERN int replace_text_len;
 EXTERN int help_page;
 EXTERN int decode_page;
 EXTERN int undo_cnt;
 EXTERN int undo_malloc_cnt;
+EXTERN int user_undo_cnt;
 EXTERN int total_updates;
 EXTERN int total_inserts;
 EXTERN int total_deletes;
 EXTERN int total_undos;
 EXTERN int undo_reset_str_len;
+EXTERN int change_cnt;
 EXTERN long goto_pos;
 EXTERN u_char *mem_start;
 EXTERN u_char *mem_end;
@@ -199,11 +221,12 @@ EXTERN u_char *mem_search_find_start;
 EXTERN u_char *mem_search_find_end;
 EXTERN u_char *mem_undo_reset;
 EXTERN u_char *mem_decode_view;
-EXTERN u_char sr_text[CMD_TEXT_SIZE+1];
+EXTERN u_char hex_text[CMD_TEXT_SIZE+1];
 EXTERN u_char search_text[CMD_TEXT_SIZE+1];
 EXTERN u_char replace_text[CMD_TEXT_SIZE+1];
 EXTERN char cmd_text[CMD_TEXT_SIZE+1];
 EXTERN char user_cmd;
+EXTERN char *home_dir;
 EXTERN time_t esc_time;
 
 /* keyboard.c */
@@ -248,14 +271,14 @@ void changeFileData(u_char c);
 void insertAtCursorPos(u_char c, int add_undo);
 void deleteAtCursorPos(int add_undo);
 void findText();
-void doSearchAndReplace();
+void searchAndReplace();
 
 /* rcfile.c */
 void parseRCFile();
 
 /* undo.c */
 void initUndo();
-void addUndo(int type, u_char *ptr, int str_len);
+void addUndo(int type, u_char *ptr, int str_len, int seq_start);
 void resetUndoPointersAfterRealloc(u_char *new_mem_start);
 void undo();
 

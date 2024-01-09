@@ -80,6 +80,11 @@ void parseSubChar(char *val, int linenum)
 		substitute_char = val[0];
 		return;
 	}
-	errprintf("The substitute must be 1 character and printable");
+	if (!strcmp(val,"space")) 
+	{
+		substitute_char = ' ';
+		return;
+	}
+	errprintf("The substitute must be 1 character and printable or the word \"space\"");
 	PRINT_LINENUM_EXIT();
 }

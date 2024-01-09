@@ -1,6 +1,7 @@
 #include "globals.h"
 
-#define MAX_UNDO_COL     21
+#define MAX_UNDO_COL 21
+#define DEC_COL2_X   25
 #define GET_PRINTABLE(C) (IS_PRINTABLE(C) ? C : substitute_char)
 
 #define PROMPT "Command or TAB ('H' for help): "
@@ -49,14 +50,23 @@ void drawMain()
 				if (ptr >= mem_decode_view && 
 				    ptr <= mem_decode_end)
 				{
-					colprintf("~BM~FW%02X~RS ",*ptr);
+					if (flags.lowercase_hex)
+						colprintf("~BM~FW%02x~RS ",*ptr);
+					else
+						colprintf("~BM~FW%02X~RS ",*ptr);
 				}
 				else if (ptr >= mem_search_find_start &&
 				         ptr <= mem_search_find_end)
 				{
-					colprintf("~RV%02X~RS ",*ptr);
+					if (flags.lowercase_hex)
+						colprintf("~RV%02x~RS ",*ptr);
+					else
+						colprintf("~RV%02X~RS ",*ptr);
 				}
-				else printf("%02X ",*ptr);
+				else if (flags.lowercase_hex)
+					printf("%02x ",*ptr);
+				else
+					printf("%02X ",*ptr);
 				++ptr;
 			}
 			else printf("   ");
@@ -156,8 +166,7 @@ int drawBanner(int line_flags)
 		clearLine(0);
 		locate(0,0);
 		snprintf(text,sizeof(text),"%lu/%lu",
-			(u_long)(mem_cursor - mem_start),
-			(u_long)(mem_end - mem_start));
+			(u_long)(mem_cursor - mem_start),(u_long)file_size);
 		colprintf("~RS~BM~FWFile position    :~RS %-20s ",text);
 		colprintf("~BB~FWFilename     :~RS %s\n",
 			filename ? filename : "");
@@ -167,7 +176,7 @@ int drawBanner(int line_flags)
 	{
 		clearLine(1);
 		locate(0,1);
-		colprintf("~BR~FWUndo cnt/val (F5):~RS %-4d",undo_cnt);
+		colprintf("~BR~FWUndo cnt/val (F5):~RS %-4d",user_undo_cnt);
 		if (undo_cnt)
 		{
 			ud = &undo_list[undo_cnt-1];
@@ -175,9 +184,18 @@ int drawBanner(int line_flags)
 			{
 			case UNDO_CHAR:
 			case UNDO_DELETE:
-				colprintf("~FT,~RS0x%02X/'%c'        ",
-					ud->prev_char,
-					GET_PRINTABLE(ud->prev_char));
+				if (flags.lowercase_hex)
+				{
+					colprintf("~FT,~RS0x%02x/'%c'        ",
+						ud->prev_char,
+						GET_PRINTABLE(ud->prev_char));
+				}
+				else
+				{
+					colprintf("~FT,~RS0x%02X/'%c'        ",
+						ud->prev_char,
+						GET_PRINTABLE(ud->prev_char));
+				}
 				break;
 			case UNDO_INSERT:
 				colprintf("~FT,~RS[insert]        ");
@@ -203,7 +221,12 @@ int drawBanner(int line_flags)
 			{
 				printf("0x");
 				for(i=0;i < search_text_len;++i)
-					printf("%02X",search_text[i]);
+				{
+					if (flags.lowercase_hex)
+						printf("%02x",search_text[i]);
+					else
+						printf("%02X",search_text[i]);
+				}
 				putchar('\n');
 			}
 		}
@@ -230,7 +253,7 @@ int drawBanner(int line_flags)
 			term_height - BAN_PANE_HEIGHT - CMD_PANE_HEIGHT - 2,
 			cursor_name[term_type][cursor_type]);
 
-		colprintf("%-20s ~BM~FWS&R count    :~RS %d",text,sr_count);
+		colprintf("%-20s ~BM~FWS&R count    :~RS %d",text,sr_cnt);
 	}
 	return 1;
 }
@@ -240,6 +263,7 @@ int drawBanner(int line_flags)
 
 void drawCmdPane()
 {
+	int set_cursor_pos = 1;
 	int i;
 
 	for(i=1;i <= CMD_PANE_HEIGHT;++i) clearLine(term_div_y+i);
@@ -308,8 +332,9 @@ void drawCmdPane()
 		switch(user_cmd)
 		{
 		case 'A':
-			locate(0,term_textbox_y);
-			colprintf("~FMSaving as:~RS %s\n",filename);
+			colprintf("~FMSave file as:~RS %s",cmd_text);	
+			cmd_x += 14;
+			locate(cmd_x,cmd_y);
 			break;
 		case 'G':
 			cmd_x += 21;
@@ -324,16 +349,16 @@ void drawCmdPane()
 			colprintf("~FMQuit...");
 			break;
 		case 'S':
-			cmd_x += 10;
-			colprintf("~FMFilename:~RS %s",cmd_text);	
+			locate(0,term_textbox_y);
+			colprintf("~FMSaving file:~RS %s\n",filename);
 			break;
 		case 'T':
-			cmd_x += 13;
 			colprintf("~FMText search:~RS %s\n",cmd_text);
+			cmd_x += 13;
 			break;
 		case 'X':
-			cmd_x += 12;
 			colprintf("~FMHex search:~RS %s",cmd_text);
+			cmd_x += 12;
 			break;
 		default:
 			/* Use states instead of user_cmd for search and
@@ -341,32 +366,35 @@ void drawCmdPane()
 			switch(sr_state)
 			{
 			case SR_STATE_TEXT1:
-				cmd_x += 14;
-				colprintf("~FMS&R old text:~RS %s\n",cmd_text);
+				colprintf("~FW~BB*** Text search and replace ***\n");
+				colprintf("~FMOld text:~RS %s\n",cmd_text);
+				cmd_x += 10;
+				locate(cmd_x,++cmd_y);
 				break;
 
 			case SR_STATE_TEXT2:
-				cmd_x += 14;
-				colprintf("~FMS&R old text:~RS %s\n",search_text);
-				++cmd_y;	
-				locate(0,cmd_y);
-				cmd_x = cmd_text_len + 14;
-				colprintf("~FYS&R new text:~RS %s",cmd_text);
+				colprintf("~FW~BB*** Text search and replace ***\n");
+				colprintf("~FMOld text:~RS %s\n",search_text);
+				colprintf("~FYNew text:~RS %s",cmd_text);
+				cmd_y += 2;
+				cmd_x = cmd_text_len + 10;
+				locate(cmd_x,cmd_y);
 				break;
 
 			case SR_STATE_HEX1:
-				cmd_x += 13;
-				colprintf("~FMS&R old hex:~RS %s",cmd_text);
+				colprintf("~FW~BM*** Hex search and replace ***\n");
+				colprintf("~FMOld hex:~RS %s",cmd_text);
+				cmd_x += 9;
+				locate(cmd_x,++cmd_y);
 				break;
 
 			case SR_STATE_HEX2:
-				cmd_x += 13;
-				colprintf("~FMS&R old hex:~RS %s",sr_text);
-				++cmd_y;	
-
-				locate(0,cmd_y);
-				cmd_x = cmd_text_len + 13;
-				colprintf("~FYS&R new hex:~RS %s",cmd_text);
+				colprintf("~FW~BM*** Hex search and replace ***\n");
+				colprintf("~FMOld hex:~RS %s\n",hex_text);
+				colprintf("~FYNew hex:~RS %s",cmd_text);
+				cmd_y += 2;
+				cmd_x = cmd_text_len + 9;
+				locate(cmd_x,cmd_y);
 				break;
 
 			default:
@@ -375,14 +403,19 @@ void drawCmdPane()
 		}
 		if (cmd_state == STATE_TEXT) break;
 
+		set_cursor_pos = 0;
 		cmd_x = 20;
-		cmd_y = term_div_y+3;
+		cmd_y = term_div_y + 3;
 		locate(0,cmd_y);
 		colprintf("~FYAre you sure (Y/N)?~RS ");
 		break;
 
 	case STATE_SAVE_OK:
 		colprintf("~BG~FW*** Saved ***~RS");
+		break;
+
+	case STATE_UPDATE_COUNT:
+		colprintf("~FTChange count: ~FM%d",change_cnt);
 		break;
 
 	case STATE_ERR_NOT_FOUND:
@@ -397,12 +430,20 @@ void drawCmdPane()
 		syserrprintf("open");
 		break;
 
+	case STATE_ERR_INVALID_PATH:
+		errprintf("Invalid path.");
+		break;
+
 	case STATE_ERR_INPUT:
 		errprintf("Invalid input.");
 		break;
 
 	case STATE_ERR_NO_SEARCH_TEXT:
-		errprintf("No search text set.");
+		errprintf("Search text not set.");
+		break;
+
+	case STATE_ERR_NO_FILENAME:
+		errprintf("Filename not set.");
 		break;
 
 	case STATE_ERR_INVALID_HEX_LEN:
@@ -429,6 +470,7 @@ void drawCmdPane()
 	default:
 		assert(0);
 	}
+	if (set_cursor_pos) locate(cmd_x,cmd_y);
 	fflush(stdout);
 }
 
@@ -494,7 +536,10 @@ void drawUndoList()
 			term_pane = PANE_HEX;
 			positionCursor(0);
 			colstr = (colpos < MAX_UNDO_COL ? undo_col[colpos] : "FW");
-			colprintf("~%s%02X ",colstr,*ptr);
+			if (flags.lowercase_hex)
+				colprintf("~%s%02x ",colstr,*ptr);
+			else
+				colprintf("~%s%02X ",colstr,*ptr);
 
 			term_pane = PANE_TEXT;
 			positionCursor(0);
@@ -545,9 +590,9 @@ void drawDecodeView()
 	memcpy(p1,mem_cursor,2);
 	locate(0,term_textbox_y+1);
 	if (decode_page)
-		colprintf("~FGU16 sys:~RS %u\n",s1);
+		colprintf("~FGU16 system :~RS %u\n",s1);
 	else
-		colprintf("~FGS16 sys:~RS %d\n",(int16_t)s1);
+		colprintf("~FGS16 system :~RS %d\n",(int16_t)s1);
 
 	/* Can't use ntoh*() functions because they don't always
 	   do anything depending on the architecture */
@@ -555,9 +600,9 @@ void drawDecodeView()
 	p1[0] = p2[1];
 	p1[1] = p2[0];
 	if (decode_page)
-		colprintf("~FTU16 rev:~RS %u\n",s1);
+		colprintf("~FTU16 reverse:~RS %u\n",s1);
 	else
-		colprintf("~FTS16 rev:~RS %d\n",(int16_t)s1);
+		colprintf("~FTS16 reverse:~RS %d\n",(int16_t)s1);
 
 	if (len < 4) return;
 
@@ -567,14 +612,14 @@ void drawDecodeView()
 	/* 32 bit system byte order. */
 	memcpy(p1,mem_cursor,4);
 	if (decode_page)
-		colprintf("~FGU32 sys:~RS %u\n",i1);
+		colprintf("~FGU32 system :~RS %u\n",i1);
 	else
-		colprintf("~FGS32 sys:~RS %d\n",(int32_t)i1);
+		colprintf("~FGS32 system :~RS %d\n",(int32_t)i1);
 
 	if (decode_page)
 	{
 		/* U32 date system order */
-		locate(22,term_textbox_y+3);
+		locate(DEC_COL2_X,term_textbox_y+3);
 		t = (time_t)i1;
 		colprintf("~FGU32 date sys:~RS ",t);
 		if ((tms = gmtime(&t)))
@@ -590,14 +635,14 @@ void drawDecodeView()
 	i2 = i1;
 	for(i=0;i < 4;++i) p1[i] = p2[3-i];
 	if (decode_page)
-		colprintf("~FTU32 rev:~RS %u\n",i1);
+		colprintf("~FTU32 reverse:~RS %u\n",i1);
 	else
-		colprintf("~FTS32 rev:~RS %d\n",(int32_t)i1);
+		colprintf("~FTS32 reverse:~RS %d\n",(int32_t)i1);
 
 	if (decode_page)
 	{
 		/* U32 date reverse order */
-		locate(22,term_textbox_y+4);
+		locate(DEC_COL2_X,term_textbox_y+4);
 		colprintf("~FTU32 date rev:~RS ");
 		t = (time_t)i1;
 		if ((tms = gmtime(&t)))
@@ -614,7 +659,7 @@ void drawDecodeView()
 	p1 = (u_char *)&l1;
 	p2 = (u_char *)&l2;
 	memcpy(p1,mem_cursor,8);
-	locate(22,term_textbox_y+1);
+	locate(DEC_COL2_X,term_textbox_y+1);
 	if (decode_page)
 		colprintf("~FGU64 system  :~RS %llu\n",l1);
 	else
@@ -623,14 +668,14 @@ void drawDecodeView()
 	/* 64 bit reverse */
 	l2 = l1;
 	for(i=0;i < 8;++i) p1[i] = p2[7-i];
-	locate(22,term_textbox_y+2);
+	locate(DEC_COL2_X,term_textbox_y+2);
 	if (decode_page)
 		colprintf("~FTU64 reverse :~RS %llu\n",l1);
 	else
 		colprintf("~FTS64 reverse :~RS %lld\n",(uint64_t)l1);
 
 	locate(0,term_textbox_y+5);
-	colprintf("~FGsys~RS = system byte order, ~FTrev~RS = reverse order. ~FGPress 'D' again for next...");
+	colprintf("~FGsys~RS = system byte order, ~FTrev~RS = reverse order. ~FGPress 'D' for next...~RS");
 }
 
 
@@ -666,7 +711,7 @@ void drawHorizontalLines()
 				if (!(i % 3))
 				{
 					if (!(++cols % 4))
-						colprintf("~BB+~BT");
+						colprintf("~BB|~BT");
 					else
 						putchar('-');
 				}
@@ -674,7 +719,7 @@ void drawHorizontalLines()
 			}
 			/* Text pane */
 			else if (++cols > 1 && cols % 4 == 1)
-				colprintf("~BM+~BT");
+				colprintf("~BM|~BT");
 			else
 				putchar('-');
 		}
@@ -704,20 +749,27 @@ void drawFileInfo()
 
 void drawHelp()
 {
-	if (help_page)
+	switch(help_page)
 	{
-		colprintf("~BM~FW*** Commands ***\n");
-		colprintf("~FTA:~RS Save file  ~FTC:~RS Toggle colour  ~FTD:~RS Decode             ~FTF:~RS File info\n");
-		colprintf("~FTG:~RS Goto pos   ~FTH:~RS Help           ~FTI:~RS Text search (CI)   ~FTN:~RS Find next\n");
-		colprintf("~FTQ:~RS Quit       ~FTR:~RS Redraw         ~FTS:~RS Save as            ~FTT:~RS Text search\n");
-		colprintf("~FTV:~RS Version    ~FTX:~RS Hex search     ~FTY:~RS Text search & rep  ~FTZ:~RS Hex search & replace\n");
-		colprintf("~FGPress 'H' again for function keys...");
-	}
-	else
-	{
-		colprintf("~BM~FW*** Function keys ***\n");
-		colprintf("~FYF1:~RS Page up   ~FYF2:~RS Page down   ~FYF3:~RS Insert   ~FYF4:~RS Delete\n");
-		colprintf("~FYF5:~RS Undo      ~FYF6:~RS Search      ~FYF7:~RS Decode   ~FYF8:~RS Change cursor type\n");
-		colprintf("~FGPress 'H' again for commands...");
+	case HELP_COM_1:
+		colprintf("~BM~FW*** Commands page 1 ***\n\n");
+		colprintf("~FTA:~RS Save file as  ~FTC:~RS Toggle colour  ~FTD:~RS Decode            ~FTF:~RS File info\n");
+		colprintf("~FTG:~RS Goto pos      ~FTH:~RS Help           ~FTI:~RS Text search (CI)  ~FTL:~RS Toggle hex case\n");
+		colprintf("~FTM:~RS Toggle mode   ~FTN:~RS Find next      ~FTQ:~RS Quit              ~FTR:~RS Redraw\n");
+		colprintf("~FGPress 'H' again for more commands...~RS");
+		break;
+
+	case HELP_COM_2:
+		colprintf("~BM~FW*** Commands page 2 ***\n\n");
+		colprintf("~FTS:~RS Save file  ~FTT:~RS Text search  ~FTV:~RS Version  ~FTX:~RS Hex search\n");
+		colprintf("~FTY:~RS Text search & replace      ~FTZ:~RS Hex search & replace\n\n");
+		colprintf("~FGPress 'H' again for function keys...~RS");
+		break;
+
+	case HELP_FKEYS:
+		colprintf("~BM~FW*** Function keys ***\n\n");
+		colprintf("~FYF1:~RS Page up   ~FYF2:~RS Page down   ~FYF3:~RS Toggle mode  ~FYF4:~RS Delete\n");
+		colprintf("~FYF5:~RS Undo      ~FYF6:~RS Search      ~FYF7:~RS Decode       ~FYF8:~RS Cycle cursor types\n\n");
+		colprintf("~FGPress 'H' again for commands...~RS");
 	}
 }

@@ -6,6 +6,7 @@ void initUndo()
 {
 	undo_cnt = 0;
 	undo_malloc_cnt = 0;
+	user_undo_cnt = 0;
 	undo_list = NULL;
 	mem_undo_reset = NULL;
 	undo_reset_str_len = 1;
@@ -15,7 +16,7 @@ void initUndo()
 
 
 /*** If str_len is set then its a search and replace undo */
-void addUndo(int type, u_char *mem_pos, int str_len)
+void addUndo(int type, u_char *mem_pos, int str_len, int seq_start)
 {
 	st_undo *ud;
 	u_char *str;
@@ -38,6 +39,7 @@ void addUndo(int type, u_char *mem_pos, int str_len)
 	ud = &undo_list[undo_cnt];
 	bzero(ud,sizeof(st_undo));
 
+	ud->seq_start = seq_start;
 	ud->mem_pos = mem_pos;
 	ud->cur_hex_right = flags.cur_hex_right;
 	ud->type = type;
@@ -61,6 +63,7 @@ void addUndo(int type, u_char *mem_pos, int str_len)
 		assert(0);
 	}
 	++undo_cnt;
+	user_undo_cnt += seq_start;
 }
 
 
@@ -81,9 +84,26 @@ void resetUndoPointersAfterRealloc(u_char *new_mem_start)
 void undo()
 {
 	st_undo *ud;
+	size_t diff;
+	int cnt = 0;
 
-	if (undo_cnt)
+	if (!undo_cnt)
 	{
+		prev_cmd_state = cmd_state;
+		cmd_state = STATE_ERR_UNDO;
+		return;
+	}
+
+	/* Retain the same relative position in the file after an undo */
+	if (flags.retain_preundo_pos)
+		diff = (size_t)(mem_cursor - mem_start);
+
+	/* Loop until we get back to the start of the sequence. Sequences exist
+	   because multiple undos can be created for a single search and 
+	   replace */
+	do
+	{
+		assert(undo_cnt);
 		ud = &undo_list[undo_cnt-1];
 		mem_cursor = ud->mem_pos;
 		switch(ud->type)
@@ -107,14 +127,20 @@ void undo()
 		}
 		flags.cur_hex_right = ud->cur_hex_right;
 		--undo_cnt;
-		++total_undos;
+		++cnt;
+	} while(!ud->seq_start);
 
-		if (mem_cursor < mem_pane_start || mem_cursor > mem_pane_end)
-			setPaneStart(mem_cursor);
-	}
-	else
+	if (flags.retain_preundo_pos)
 	{
-		prev_cmd_state = cmd_state;
-		cmd_state = STATE_ERR_UNDO;
+		mem_cursor = mem_start + diff;
+		if (mem_cursor > mem_end) mem_cursor = mem_end;
 	}
+
+	if (mem_cursor < mem_pane_start || mem_cursor > mem_pane_end)
+		setPaneStart(mem_cursor);
+
+	total_undos += cnt;
+	--user_undo_cnt;
+	cmd_state = STATE_UPDATE_COUNT;
+	change_cnt = cnt;
 }

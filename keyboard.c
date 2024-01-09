@@ -13,11 +13,12 @@ void cursorRight();
 
 void runCommand(u_char c);
 void stateCmd(u_char c);
-void stateText(u_char c);
+int  stateText(u_char c);
 void stateYN(u_char c);
 void findText();
 void setCommandText(char *str);
 void setDecodeView();
+void toggleMode();
 
 
 
@@ -215,15 +216,20 @@ void readKeyboard()
 			case ESC_CON_F3:
 			case ESC_TERM_F3:
 			case ESC_INSERT:
-				flags.insert_mode = !flags.insert_mode;
-				drawBanner(BAN_LINE3);
-				positionCursor(0);
+				toggleMode();
 				break;
 
 			case ESC_CON_F4:
 			case ESC_TERM_F4:
 			case ESC_DELETE:
-				if (term_pane != PANE_CMD) deleteAtCursorPos(1);
+				if (term_pane == PANE_CMD)
+				{
+					/* Make it delete text entered for 
+					   filename or S&R */
+					if (cmd_state == STATE_TEXT)
+						stateText(BACKSPACE);
+				}
+				else deleteAtCursorPos(1);
 				break;
 
 			case ESC_CON_F5:
@@ -243,6 +249,7 @@ void readKeyboard()
 				runCommand('D');
 				break;
 
+			case ESC_CON_F8:
 			case ESC_TERM_F8:
 				setCursorType((cursor_type + 1) % NUM_CURSOR_TYPES);
 				drawBanner(BAN_LINE4);
@@ -378,8 +385,8 @@ void runCommand(u_char c)
 		stateCmd(c);
 		break;
 	case STATE_TEXT:
-		stateText(c);
-		break;
+		if (stateText(c)) break;
+		return;
 	case STATE_YN:
 		stateYN(c);
 		break;
@@ -410,8 +417,8 @@ void stateCmd(u_char c)
 	switch(user_cmd)
 	{
 	case 'A':
-		setCommandText(filename);
-		cmd_state = STATE_YN;
+	case 'G':
+		cmd_state = STATE_TEXT;
 		break;
 	case 'C':
 		flags.use_colour = !flags.use_colour;
@@ -424,9 +431,16 @@ void stateCmd(u_char c)
 	case 'F':
 		break;
 	case 'H':
-		help_page = !help_page;
+		help_page = (help_page + 1) % NUM_HELP_PAGES;
 		/* Gets reset at the bottom so return here */
 		return;
+	case 'L':
+		flags.lowercase_hex = !flags.lowercase_hex;
+		drawMain();
+		break;
+	case 'M':
+		toggleMode();
+		break;
 	case 'I':
 		/* Might not be in command pane if F6 used */
 		if (term_pane != PANE_CMD) term_pane = PANE_CMD;
@@ -445,9 +459,13 @@ void stateCmd(u_char c)
 		clearScreen();
 		drawMain();
 		break;
-	case 'G':
 	case 'S':
-		cmd_state = STATE_TEXT;
+		if (filename)
+		{
+			setCommandText(filename);
+			cmd_state = STATE_YN;
+		}
+		else cmd_state = STATE_ERR_NO_FILENAME;
 		break;
 	case 'T':
 		if (term_pane != PANE_CMD) term_pane = PANE_CMD;
@@ -468,7 +486,7 @@ void stateCmd(u_char c)
 		break;
 	case 'Y':
 	case 'Z':
-		sr_count = 0;
+		sr_cnt = 0;
 		cmd_state = STATE_TEXT;
 		drawBanner(BAN_LINE4);
 		sr_state = (user_cmd == 'Z' ? SR_STATE_HEX1 : SR_STATE_TEXT1);
@@ -477,21 +495,24 @@ void stateCmd(u_char c)
 		cmd_state = STATE_ERR_CMD;
 		break;
 	}
-	help_page = 0;
+	help_page = HELP_FKEYS;
 }
 
 
 
 
-/*** User is entering text for command ***/
-void stateText(u_char c)
+/*** User is entering text for command. Returns 1 if command pane needs to
+     be redrawn ***/
+int stateText(u_char c)
 {
+	int do_write = 0;
+
 	if (c == '\n') 
 	{
 		/* User pressed enter, do something Muttley! */
 		switch(user_cmd)
 		{
-		case 'S':
+		case 'A':
 			if (cmd_text_len)
 				cmd_state = STATE_YN;
 			else
@@ -520,13 +541,13 @@ void stateText(u_char c)
 			break;
 		default:
 			if (sr_state != SR_STATE_NONE)
-				doSearchAndReplace();
+				searchAndReplace();
 			else
 				assert(0);
 		}
-		return;
+		return 1;
 	}
-	if (cmd_text_len > CMD_TEXT_SIZE) return;
+	if (cmd_text_len > CMD_TEXT_SIZE) return 0;
 
 	/* User entering text */
 	if (c == BACKSPACE || c == ASCII_DEL)
@@ -534,31 +555,45 @@ void stateText(u_char c)
 		/* Delete last char */
 		if (cmd_text_len)
 		{
+			--cmd_x;
 			--cmd_text_len;
 			cmd_text[cmd_text_len] = 0;
+			write(STDOUT_FILENO,"\b \b",3);
 		}
-		return;
+		return 0;
 	}
 
 	/* Add char to cmd_text */
 	switch(user_cmd)
 	{
+	case 'A':
+		if (!isspace(c))
+		{
+			cmd_text[cmd_text_len++] = (char)c;
+			do_write = 1;
+		}
+		break;
 	case 'I':
 	case 'T':
 	case 'Y':
 		cmd_text[cmd_text_len++] = (char)c;
+		do_write = 1;
 		break;
 	case 'G':
-		if (isdigit(c)) cmd_text[cmd_text_len++] = (char)c;
-		break;
-	case 'S':
-		if (!isspace(c)) cmd_text[cmd_text_len++] = (char)c;
+		if (isdigit(c))
+		{
+			cmd_text[cmd_text_len++] = (char)c;
+			do_write = 1;
+		}
 		break;
 	case 'X':
 	case 'Z':
 		c = toupper(c);
 		if (isdigit(c) || (c >= 'A' && c <= 'F'))
+		{
 			cmd_text[cmd_text_len++] = c;
+			do_write = 1;
+		}
 		break;
 	default:
 		/* In HEX2 and TEXT2 search and replace states user_cmd has 
@@ -569,11 +604,15 @@ void stateText(u_char c)
 		case SR_STATE_HEX2:
 			c = toupper(c);
 			if (isdigit(c) || (c >= 'A' && c <= 'F'))
+			{
 				cmd_text[cmd_text_len++] = c;
+				do_write = 1;
+			}
 			break;
 
 		case SR_STATE_TEXT2:
 			cmd_text[cmd_text_len++] = (char)c;
+			do_write = 1;
 			break;
 
 		default:
@@ -581,6 +620,12 @@ void stateText(u_char c)
 		}
 	}
 	cmd_text[cmd_text_len] = 0;
+	if (do_write)
+	{
+		write(STDOUT_FILENO,&c,1);
+		++cmd_x;
+	}
+	return 0;
 }
 
 
@@ -588,6 +633,8 @@ void stateText(u_char c)
 
 void stateYN(u_char c)
 {
+	int tmp;
+
 	c = toupper(c);
 	if (c == 'Y')
 	{
@@ -595,19 +642,13 @@ void stateYN(u_char c)
 		{
 		case 'A':
 		case 'S':
-			if (saveFile(cmd_text))
-			{
-				resetCommand();
-				cmd_state = STATE_SAVE_OK;
-			}
-			else
-			{
-				resetCommand();
-				cmd_state = STATE_ERR_SAVE;
-			}
+			tmp = saveFile(cmd_text);
+			resetCommand();
+			cmd_state = tmp;
 			break;
 		case 'Q':
 			quit();
+			break; /* Prevents spurious gcc warning */
 		default:
 			assert(0);
 		}
@@ -641,4 +682,14 @@ void setDecodeView()
 	decode_page = !decode_page;
 
 	drawMain();
+}
+
+
+
+
+void toggleMode()
+{
+	flags.insert_mode = !flags.insert_mode;
+	drawBanner(BAN_LINE3);
+	positionCursor(0);
 }

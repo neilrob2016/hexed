@@ -39,7 +39,7 @@ void init()
 	mem_search_find_end = NULL;
 	mem_decode_view = NULL;
 
-	help_page = 0;
+	help_page = HELP_FKEYS;
 	decode_page = 0;
 	esc_time = 0;
 	total_updates = 0;
@@ -47,7 +47,8 @@ void init()
 	total_deletes = 0;
 	total_undos = 0;
 	sr_state = SR_STATE_NONE;
-	sr_count = 0;
+	sr_cnt = 0;
+	change_cnt = 0;
 
 	resetCommand();
 	initKeyboard();
@@ -87,9 +88,17 @@ void parseCmdLine(int argc, char **argv)
 			flags.insert_mode = 1;
 			flags.insert_mode_set = 1; /* Override rc setting */
 			continue;
+		case 'l':
+			flags.lowercase_hex = 1;
+			flags.lowercase_hex_set = 1;
+			continue;
 		case 'n':
 			flags.use_colour = 0;
 			flags.use_colour_set = 1;
+			continue;
+		case 'u':
+			flags.retain_preundo_pos = 1;
+			flags.retain_preundo_pos_set = 1;
 			continue;
 		case 'v':
 			versionExit();
@@ -141,8 +150,11 @@ void parseCmdLine(int argc, char **argv)
 	       "                              Default = '%c'\n"
 	       "       -x <width>x<height>  : Force terminal size. Eg: '80x25'\n"
 	       "       -i                   : Start in insert mode. Default = overwrite.\n"
+	       "       -l                   : Lowercase hex.\n"
 	       "       -n                   : No ANSI colour (will still use other ANSI\n"
 	       "                              terminal codes)\n"
+	       "       -u                   : Keep the cursor in the same relative position in\n"
+	       "                              the file after an undo if possible.\n"
 	       "       -v                   : Print version and build date then exit\n"
 	       "Note:\n"
 	       "1) All arguments are optional and they override their equivalent in the RC file.\n"
@@ -196,6 +208,7 @@ void mainloop()
 			}
 			syserrprintf("select");
 			doExit(1);
+			break; /* Prevents spurious gcc warning */
 		case 0:
 			assert(0);
 		}

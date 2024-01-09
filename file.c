@@ -89,17 +89,58 @@ void setFileName(char *name)
 
 
 
+int resolveUserHomeDir(char *name, char *path)
+{
+	struct passwd *pwd;
+	char *ptr;
+	char c;
+
+	/* Find end of username */
+	for(ptr=name;*ptr && *ptr != '/';++ptr);
+
+	/* Need more than just the username */
+	if (!*ptr) return 0;
+
+	/* Get home dir */
+	c = *ptr;
+	*ptr = 0;
+	pwd = getpwnam(name);
+	*ptr = c;
+
+	if (pwd)
+	{
+		snprintf(path,PATH_MAX,"%s/%s",pwd->pw_dir,ptr+1);
+		return 1;
+	}
+	return 0;
+}
+
+
+
+
 int saveFile(char *name)
 {
+	char path[PATH_MAX];
 	u_char *ptr;
 	u_long dist;
 	u_long len;
 	int err;
 	int fd;
 
-	if ((fd = open(name,O_WRONLY | O_CREAT,file_stat.st_mode)) == -1)
-		return 0;
-	setFileName(name);
+	if (name[0] == '~')
+	{
+		/* Resolve our or another users home dir path */
+		if (name[1] == '/')
+			snprintf(path,PATH_MAX,"%s/%s",home_dir,name+2);
+		else if (!resolveUserHomeDir(name+1,path))
+			return STATE_ERR_INVALID_PATH;
+	}
+	else snprintf(path,PATH_MAX,"%s",name);
+
+	if ((fd = open(path,O_WRONLY | O_CREAT,file_stat.st_mode)) == -1)
+		return STATE_ERR_SAVE;
+
+	setFileName(path);
 	drawBanner(BAN_LINE1);
 
 	for(ptr=mem_start;ptr <= mem_end;ptr += len)
@@ -111,12 +152,12 @@ int saveFile(char *name)
 			err = errno;
 			close(fd);
 			errno = err;
-			return 0;
+			return STATE_ERR_SAVE;
 		}
 	}
 	close(fd);
 	
-	return 1;
+	return STATE_SAVE_OK;
 }
 
 
@@ -132,7 +173,7 @@ void changeFileData(u_char c)
 		if (flags.insert_mode) insertAtCursorPos(c,1);
 		else
 		{
-			addUndo(UNDO_CHAR,mem_cursor,0);
+			addUndo(UNDO_CHAR,mem_cursor,0,1);
 			*mem_cursor = c;
 		}
 		++total_updates;
@@ -160,7 +201,7 @@ void changeFileData(u_char c)
 
 	if (flags.cur_hex_right)
 	{
-		addUndo(UNDO_CHAR,mem_cursor,0);
+		addUndo(UNDO_CHAR,mem_cursor,0,1);
 		/* 2nd/right nibble of hex value */
 		*mem_cursor = (c & 0x0F) | (*mem_cursor & 0xF0);
 
@@ -179,7 +220,7 @@ void changeFileData(u_char c)
 		if (flags.insert_mode) insertAtCursorPos(c,1);
 		else
 		{
-			addUndo(UNDO_CHAR,mem_cursor,0);
+			addUndo(UNDO_CHAR,mem_cursor,0,1);
 			*mem_cursor = c;
 			drawUndoList();
 		}
@@ -223,7 +264,7 @@ void insertAtCursorPos(u_char c, int add_undo)
 	++mem_end;
 	++total_inserts;
 
-	if (add_undo) addUndo(UNDO_INSERT,mem_cursor,0);
+	if (add_undo) addUndo(UNDO_INSERT,mem_cursor,0,1);
 	mem_decode_view = NULL;
 
 	/* Sets mem_pane_end */
@@ -243,11 +284,12 @@ void deleteAtCursorPos(int add_undo)
 	if (mem_start >= mem_end) return;
 
 	/* Leave 1 char left */
-	if (add_undo) addUndo(UNDO_DELETE,mem_cursor,0);
+	if (add_undo) addUndo(UNDO_DELETE,mem_cursor,0,1);
 
 	for(ptr=mem_cursor;ptr < mem_end;++ptr) *ptr = *(ptr+1);
 	--mem_end;
 	if (mem_cursor > mem_end) mem_cursor = mem_end;
+	if (mem_cursor < mem_pane_start) setPaneStart(mem_cursor);
 	--file_size;
 	++total_deletes;
 
@@ -427,12 +469,13 @@ void findText()
 
 
 
-void doSearchAndReplace()
+void searchAndReplace()
 {
 	u_char *ptr;
 	u_char *search_start;
+	int undo_seq_start;
 
-	sr_count = 0;
+	sr_cnt = 0;
 	flags.search_hex = 0;
 
 	if (!cmd_text_len)
@@ -469,15 +512,15 @@ void doSearchAndReplace()
 			cmd_state = STATE_ERR_INVALID_HEX_LEN;
 			return;
 		}
-		strcpy((char *)sr_text,cmd_text);
-		sr_text_len = cmd_text_len;
+		strcpy((char *)hex_text,cmd_text);
+		hex_text_len = cmd_text_len;
 		hexToBinary(search_text,&search_text_len);
 		clearCommandText();
 		++sr_state;
 		return;
 
 	case SR_STATE_HEX2:
-		if (cmd_text_len != sr_text_len)
+		if (cmd_text_len != hex_text_len)
 		{
 			resetCommand();
 			cmd_state = STATE_ERR_MUST_BE_SAME_LEN;
@@ -500,19 +543,24 @@ void doSearchAndReplace()
 	}
 
 	/* We've got our search and replace text so lets do some replacing */
+	undo_seq_start = 1;
 	flags.search_ign_case = 0;
+
 	for(search_start=mem_cursor;
-	    (ptr = findSearchText(search_start));++sr_count)
+	    (ptr = findSearchText(search_start));++sr_cnt)
 	{
-		/* Note that there will be an individual undo for each piece
-		   of text that is replaced so a single search and replace 
-		   could max out the undo list */
-		addUndo(UNDO_STR,ptr,replace_text_len);
+		addUndo(UNDO_STR,ptr,replace_text_len,undo_seq_start);
+		undo_seq_start = 0;
 		memcpy(ptr,replace_text,replace_text_len);
 		search_start = ptr + 1;
 	}
 	drawMain();
 	resetCommand();
-	if (!sr_count) cmd_state = STATE_ERR_NOT_FOUND;
 	sr_state = SR_STATE_NONE;
+	if (sr_cnt)
+	{
+		cmd_state = STATE_UPDATE_COUNT;
+		change_cnt = sr_cnt;
+	}
+	else cmd_state = STATE_ERR_NOT_FOUND;
 }

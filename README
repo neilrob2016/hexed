@@ -1,6 +1,7 @@
 Intro
 =====
-This is a colour command line hex editor for MacOS and Linux. To compile
+This is a colour command line hex editor for MacOS and Linux (and seems to 
+compile and run on FreeBSD but I've not tested it properly). To compile
 just type "make" then "hexed -f <filename>" to edit a file. Type 'H' to
 get a list of commands and function keys.
 
@@ -15,15 +16,17 @@ As of version 20231219 I added a run command (RC) file option -r. This contains
 settings equivalent to the command line options. If no RC file is given hexed
 will attempt to read ~/.hexedrc but if its not there it carries on.
 
-Option    Valid values           Cmd line
-------    ------------           --------
-cursor    blk,udl,bar            -c
-mode      insert,overwrite       -i
-colour    on,off                 -n 
-pane      hex,text,cmd           -p
-subchar   <single char>          -s
-termsize  <width>x<height>       -x
+Option      Valid values           Cmd line
+------      ------------           --------
+cursor      blk,udl,bar            -c
+mode        insert,overwrite       -i
+lc_hex      on,off                 -l
+colour      on,off                 -n 
+retain_pos  on,off                 -u
+pane        hex,text,cmd           -p
+subchar     <single char>,space    -s
+termsize    <width>x<height>       -x
 
 An example RC file is with the source called example_rc.
 
-neilrob2016@gmail.com
+If you have any bugs/suggestions/questions email me at: neilrob2016@gmail.com

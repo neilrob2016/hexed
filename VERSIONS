@@ -41,3 +41,29 @@
   allocates a single byte in memory and sets it to zero.
 - Reduced amount of unnecessary redraws.
 - More efficient memory allocation.
+
+
+20240109
+========
+- Added lowercase hex functionality via -l command line option and 'L' command.
+- Added retain pre undo cursor position functionality via -u command line
+  option and "retain_pos" RC file field.
+- Undo for Search and replace is now a single operation rather than having to 
+  manually undo each string replaced.
+- When saving a file ~/ is now expanded into the home directory path if it is
+  at the beginning of the filename. Also ~<username> is expanded into the given
+  users home directory path.
+- The "subchar" field in the RC file will now accept the word "space" allowing
+  you to set a space (ascii 32) as the substitution char for non printing
+  characters. You can also use "space" with the -s option but its somewhat
+  redundant as " " works just as well on the command line.
+- Reduced redraws when entering text in the command pane.
+- Delete key now works in command pane text entry (eg filename, searches).
+- Swapped action of 'A' and 'S' commands.
+- Fixed assert crash when deleting the last character in the file when its 
+  displayed at the start of the text/hex pane.
+- Fixed old 'A' (now 'S') command crash when filename not set.
+- Fixed off by one file size in "File position" field.
+- Fixed F8 key not working in Linux console.
+- Fixed green colour bug when pressing 'C' while help or decode displaying.
+- Minor look and feel updates and mods.

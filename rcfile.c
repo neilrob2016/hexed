@@ -6,19 +6,21 @@ void parseRCFile()
 {
 	FILE *fp;
 	char text[PATH_MAX];
-	char *home;
 	int user_file = 0;
 	int linenum;
 
 	/* We'll only see the bootup messages if there's an error */
 	colprintf("~BM*** HEXED starting ***\n");
 
+	/* Also used in data file save */
+	home_dir = getenv("HOME");
+
 	if (!rc_filename)
 	{
 		/* Should always be set but just in case... */
-		if ((home = getenv("HOME")))
+		if (home_dir)
 		{
-			snprintf(text,sizeof(text),"%s/%s",getenv("HOME"),RC_FILENAME);
+			snprintf(text,sizeof(text),"%s/%s",home_dir,RC_FILENAME);
 			rc_filename = text;
 		}
 		else rc_filename = RC_FILENAME;
@@ -61,9 +63,14 @@ void parseLine(char *line, int linenum)
 {
 	char opt[PATH_MAX];
 	char val[PATH_MAX];
+	int onoff;
 
 	sscanf(line,"%s %s",opt,val);
 	if (opt[0] == '#') return;
+
+	if (!strcmp(val,"on") || !strcmp(val,"yes")) onoff = 1;
+	else if (!strcmp(val,"off") || !strcmp(val,"no")) onoff = 0;
+	else onoff = -1;
 
 	if (!strcmp(opt,"mode"))
 	{
@@ -85,15 +92,44 @@ void parseLine(char *line, int linenum)
 	}
 	else if (!strcmp(opt,"colour"))
 	{
-		if (!strcmp(val,"on") || !strcmp(val,"yes"))
+		switch(onoff)
 		{
+		case -1:
+			goto VAL_ERROR;
+		case 0:
+			if (!flags.use_colour_set) flags.use_colour = 0;
+			break;
+		case 1:
 			if (!flags.use_colour_set) flags.use_colour = 1;
 		}
-		else if (!strcmp(val,"off") || !strcmp(val,"no"))
+	}
+	else if (!strcmp(opt,"lc_hex"))
+	{
+		switch(onoff)
 		{
-			if (!flags.use_colour_set) flags.use_colour = 0;
+		case -1:
+			goto VAL_ERROR;
+		case 0:
+			if (!flags.lowercase_hex_set) flags.lowercase_hex = 0;
+			break;
+		case 1:
+			if (!flags.lowercase_hex_set) flags.lowercase_hex = 1;
 		}
-		else goto VAL_ERROR;
+	}
+	else if (!strcmp(opt,"retain_pos"))
+	{
+		switch(onoff)
+		{
+		case -1:
+			goto VAL_ERROR;
+		case 0:
+			if (!flags.retain_preundo_pos_set)
+				flags.retain_preundo_pos = 0;
+			break;
+		case 1:
+			if (!flags.retain_preundo_pos_set)
+				flags.retain_preundo_pos = 1;
+		}
 	}
 	else if (!strcmp(opt,"termsize"))
 	{
