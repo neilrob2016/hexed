@@ -228,8 +228,10 @@ void readKeyboard()
 					   filename or S&R */
 					if (cmd_state == STATE_TEXT)
 						stateText(BACKSPACE);
+					break;
 				}
-				else deleteAtCursorPos(1);
+				deleteAtCursorPos(1,1);
+				drawMain();
 				break;
 
 			case ESC_CON_F5:

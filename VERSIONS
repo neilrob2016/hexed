@@ -67,3 +67,14 @@
 - Fixed F8 key not working in Linux console.
 - Fixed green colour bug when pressing 'C' while help or decode displaying.
 - Minor look and feel updates and mods.
+
+
+20240123
+========
+- Search and replace strings can now differ in length.
+- Removed update count message as it wasn't much use except for search and
+  replace - the count for which is already given at the top - and just 
+  complicated the code.
+- Fixed S&R input sanity checker bug whereby it would say 2 strings were the
+  same if they we different lengths but the replacement string was a subset.
+- Fixed undo location position colouring bug following insert/delete locations.

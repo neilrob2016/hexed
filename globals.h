@@ -20,7 +20,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20240109"
+#define VERSION "20240123"
 
 #define RC_FILENAME     ".hexedrc"
 #define DEF_TERM_WIDTH  80
@@ -85,7 +85,6 @@ enum
 	STATE_TEXT,
 	STATE_YN,
 	STATE_SAVE_OK,
-	STATE_UPDATE_COUNT,
 
 	STATE_ERR_NOT_FOUND,
 	STATE_ERR_CMD,
@@ -95,7 +94,6 @@ enum
 	STATE_ERR_NO_SEARCH_TEXT,
 	STATE_ERR_NO_FILENAME,
 	STATE_ERR_INVALID_HEX_LEN,
-	STATE_ERR_MUST_BE_SAME_LEN,
 	STATE_ERR_MUST_DIFFER,
 	STATE_ERR_UNDO,
 	STATE_ERR_DATA_VIEW
@@ -163,7 +161,7 @@ typedef struct
 {
 	int type;
 	int seq_start;
-	u_char *mem_pos;
+	size_t pos;
 	u_char prev_char;
 	u_char *prev_str;
 	int str_len;
@@ -197,7 +195,6 @@ EXTERN int prev_cmd_state;
 EXTERN int cmd_text_len;
 EXTERN int sr_state;
 EXTERN int sr_cnt;
-EXTERN int hex_text_len;
 EXTERN int search_text_len;
 EXTERN int replace_text_len;
 EXTERN int help_page;
@@ -210,7 +207,6 @@ EXTERN int total_inserts;
 EXTERN int total_deletes;
 EXTERN int total_undos;
 EXTERN int undo_reset_str_len;
-EXTERN int change_cnt;
 EXTERN long goto_pos;
 EXTERN u_char *mem_start;
 EXTERN u_char *mem_end;
@@ -268,8 +264,8 @@ void mapFile();
 void setFileName(char *name);
 int  saveFile(char *name);
 void changeFileData(u_char c);
-void insertAtCursorPos(u_char c, int add_undo);
-void deleteAtCursorPos(int add_undo);
+void insertAtCursorPos(u_char c, int add_undo, int seq_start);
+void deleteAtCursorPos(int add_undo, int seq_start);
 void findText();
 void searchAndReplace();
 
@@ -279,9 +275,8 @@ void parseRCFile();
 /* undo.c */
 void initUndo();
 void addUndo(int type, u_char *ptr, int str_len, int seq_start);
-void resetUndoPointersAfterRealloc(u_char *new_mem_start);
 void undo();
-
+void updateUndoPositions(int add);
 
 /* printf.c */
 void errprintf(const char *fmt, ...);

@@ -414,10 +414,6 @@ void drawCmdPane()
 		colprintf("~BG~FW*** Saved ***~RS");
 		break;
 
-	case STATE_UPDATE_COUNT:
-		colprintf("~FTChange count: ~FM%d",change_cnt);
-		break;
-
 	case STATE_ERR_NOT_FOUND:
 		colprintf("~BM~FW*** Not found ***~RS");
 		break;
@@ -448,10 +444,6 @@ void drawCmdPane()
 
 	case STATE_ERR_INVALID_HEX_LEN:
 		errprintf("Invalid hex length.");
-		break;
-
-	case STATE_ERR_MUST_BE_SAME_LEN:
-		errprintf("Search and replace strings must be the same length.");
 		break;
 
 	case STATE_ERR_MUST_DIFFER:
@@ -515,7 +507,7 @@ void drawUndoList()
 	for(i=0;i < undo_cnt;++i)
 	{
 		ud = &undo_list[i];
-		ptr = ud->mem_pos;
+		ptr = mem_start + ud->pos;
 		cnt = (ud->type == UNDO_STR ? ud->str_len : 1);
 		
 		/* If we're not using colour we don't need to highlight colour

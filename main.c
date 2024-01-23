@@ -48,7 +48,6 @@ void init()
 	total_undos = 0;
 	sr_state = SR_STATE_NONE;
 	sr_cnt = 0;
-	change_cnt = 0;
 
 	resetCommand();
 	initKeyboard();

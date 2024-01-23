@@ -170,7 +170,11 @@ void changeFileData(u_char c)
 	if (term_pane == PANE_TEXT)
 	{
 		if (!IS_PRINTABLE(c)) return;
-		if (flags.insert_mode) insertAtCursorPos(c,1);
+		if (flags.insert_mode)
+		{
+			insertAtCursorPos(c,1,1);
+			drawMain();
+		}
 		else
 		{
 			addUndo(UNDO_CHAR,mem_cursor,0,1);
@@ -217,7 +221,11 @@ void changeFileData(u_char c)
 	else
 	{
 		c = (c << 4) | (*mem_cursor & 0x0F);
-		if (flags.insert_mode) insertAtCursorPos(c,1);
+		if (flags.insert_mode)
+		{
+			insertAtCursorPos(c,1,1);
+			drawMain();
+		}
 		else
 		{
 			addUndo(UNDO_CHAR,mem_cursor,0,1);
@@ -238,7 +246,7 @@ void changeFileData(u_char c)
 
 /*** Insert zero at the current cursor position and shift rest of file up
      1 character ***/
-void insertAtCursorPos(u_char c, int add_undo)
+void insertAtCursorPos(u_char c, int add_undo, int seq_start)
 {
 	u_char *ptr;
 
@@ -249,8 +257,8 @@ void insertAtCursorPos(u_char c, int add_undo)
 		ptr = (u_char *)realloc(mem_start,file_malloc_size);
 		assert(ptr);
 
-		/* Reset all pointers */
-		resetUndoPointersAfterRealloc(ptr);
+		/* Reset all pointers except mem_pane_end which is done in
+		   drawMain() */
 		mem_cursor = ptr + (mem_cursor - mem_start);
 		mem_pane_start = ptr + (mem_pane_start - mem_start);
 		mem_start = ptr;
@@ -263,12 +271,10 @@ void insertAtCursorPos(u_char c, int add_undo)
 	++file_size;
 	++mem_end;
 	++total_inserts;
+	updateUndoPositions(1);
 
-	if (add_undo) addUndo(UNDO_INSERT,mem_cursor,0,1);
+	if (add_undo) addUndo(UNDO_INSERT,mem_cursor,0,seq_start);
 	mem_decode_view = NULL;
-
-	/* Sets mem_pane_end */
-	drawMain();
 }
 
 
@@ -277,14 +283,14 @@ void insertAtCursorPos(u_char c, int add_undo)
 /*** Delete the character at the cursor position. We don't change the size of
      the allocated memory in case the user wants to do an insert elsewhere
      hence file_malloc_size unchanged ***/
-void deleteAtCursorPos(int add_undo)
+void deleteAtCursorPos(int add_undo, int seq_start)
 {
 	u_char *ptr;
 
 	if (mem_start >= mem_end) return;
 
 	/* Leave 1 char left */
-	if (add_undo) addUndo(UNDO_DELETE,mem_cursor,0,1);
+	if (add_undo) addUndo(UNDO_DELETE,mem_cursor,0,seq_start);
 
 	for(ptr=mem_cursor;ptr < mem_end;++ptr) *ptr = *(ptr+1);
 	--mem_end;
@@ -292,9 +298,7 @@ void deleteAtCursorPos(int add_undo)
 	if (mem_cursor < mem_pane_start) setPaneStart(mem_cursor);
 	--file_size;
 	++total_deletes;
-
-	/* Sets mem_pane_end */
-	drawMain();
+	updateUndoPositions(-1);
 }
 
 
@@ -469,11 +473,15 @@ void findText()
 
 
 
+/*** This code is a little bit hairy ***/
 void searchAndReplace()
 {
 	u_char *ptr;
 	u_char *search_start;
+	u_char *old_mem_start;
 	int undo_seq_start;
+	int diff = 0;
+	int i;
 
 	sr_cnt = 0;
 	flags.search_hex = 0;
@@ -491,16 +499,11 @@ void searchAndReplace()
 		strcpy((char *)search_text,cmd_text);
 		search_text_len = cmd_text_len;
 		clearCommandText();
-		++sr_state;
+		sr_state = SR_STATE_TEXT2;
 		return;
 
 	case SR_STATE_TEXT2:
-		if (cmd_text_len != search_text_len)
-		{
-			resetCommand();
-			cmd_state = STATE_ERR_MUST_BE_SAME_LEN;
-			return;
-		}
+		diff = cmd_text_len - search_text_len;
 		strcpy((char *)replace_text,cmd_text);
 		replace_text_len = cmd_text_len;
 		break;
@@ -513,21 +516,16 @@ void searchAndReplace()
 			return;
 		}
 		strcpy((char *)hex_text,cmd_text);
-		hex_text_len = cmd_text_len;
+		search_text_len = cmd_text_len;
 		hexToBinary(search_text,&search_text_len);
 		clearCommandText();
-		++sr_state;
+		sr_state = SR_STATE_HEX2;
 		return;
 
 	case SR_STATE_HEX2:
-		if (cmd_text_len != hex_text_len)
-		{
-			resetCommand();
-			cmd_state = STATE_ERR_MUST_BE_SAME_LEN;
-			return;
-		}
 		strcpy((char *)replace_text,cmd_text);
 		hexToBinary(replace_text,&replace_text_len);
+		diff = replace_text_len - search_text_len;
 		break;
 
 	default:
@@ -535,7 +533,8 @@ void searchAndReplace()
 	}
 
 	/* The search string and replace strings must differ */
-	if (!memcmp(search_text,replace_text,replace_text_len))
+	if (replace_text_len == search_text_len &&
+	    !memcmp(search_text,replace_text,replace_text_len))
 	{
 		resetCommand();
 		cmd_state = STATE_ERR_MUST_DIFFER;
@@ -549,6 +548,34 @@ void searchAndReplace()
 	for(search_start=mem_cursor;
 	    (ptr = findSearchText(search_start));++sr_cnt)
 	{
+		/* If new text length differs we need to either insert or
+		   replace first */
+		if (diff > 0)
+		{
+			old_mem_start = mem_start;
+			mem_cursor = ptr;
+			
+			for(i=0;i < diff;++i)
+			{
+				insertAtCursorPos(0,1,undo_seq_start);
+				undo_seq_start = 0;
+			}
+			if (mem_start != old_mem_start)
+			{
+				search_start = mem_start + (search_start - old_mem_start);
+				ptr = mem_start + (ptr - old_mem_start);
+			}
+		}
+		else if (diff < 0)
+		{
+			mem_cursor = ptr;
+			
+			for(i=0;i < -diff;++i)
+			{
+				deleteAtCursorPos(1,undo_seq_start);
+				undo_seq_start = 0;
+			}
+		}
 		addUndo(UNDO_STR,ptr,replace_text_len,undo_seq_start);
 		undo_seq_start = 0;
 		memcpy(ptr,replace_text,replace_text_len);
@@ -557,10 +584,5 @@ void searchAndReplace()
 	drawMain();
 	resetCommand();
 	sr_state = SR_STATE_NONE;
-	if (sr_cnt)
-	{
-		cmd_state = STATE_UPDATE_COUNT;
-		change_cnt = sr_cnt;
-	}
-	else cmd_state = STATE_ERR_NOT_FOUND;
+	cmd_state = (sr_cnt ? STATE_CMD : STATE_ERR_NOT_FOUND);
 }

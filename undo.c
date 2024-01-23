@@ -40,7 +40,7 @@ void addUndo(int type, u_char *mem_pos, int str_len, int seq_start)
 	bzero(ud,sizeof(st_undo));
 
 	ud->seq_start = seq_start;
-	ud->mem_pos = mem_pos;
+	ud->pos = (size_t)(mem_pos - mem_start);
 	ud->cur_hex_right = flags.cur_hex_right;
 	ud->type = type;
 
@@ -50,12 +50,12 @@ void addUndo(int type, u_char *mem_pos, int str_len, int seq_start)
 		break;
 	case UNDO_CHAR:
 	case UNDO_DELETE:
-		ud->prev_char = *mem_pos;
+		ud->prev_char = *(mem_start + ud->pos);
 		break;
 	case UNDO_STR:
 		str = (u_char *)malloc(str_len);
 		assert(str);
-		memcpy(str,mem_pos,str_len);
+		memcpy(str,mem_start + ud->pos,str_len);
 		ud->prev_str = str;
 		ud->str_len = str_len;
 		break;
@@ -69,13 +69,17 @@ void addUndo(int type, u_char *mem_pos, int str_len, int seq_start)
 
 
 
-/*** Called after a realloc insert ***/
-void resetUndoPointersAfterRealloc(u_char *new_mem_start)
+/*** Because the "pos" stored in the undo is an absolute file position, when
+     we insert or update into the file the coloured undo list will be in the
+     wrong position after the updated position unless we modify it ***/
+void updateUndoPositions(int add)
 {
+	/* Get position to add from */
+	size_t pos = (size_t)(mem_cursor - mem_start);
 	int i;
 
 	for(i=0;i < undo_cnt;++i)
-		undo_list[i].mem_pos = new_mem_start + (undo_list[i].mem_pos - mem_start);
+		if (undo_list[i].pos > pos) undo_list[i].pos += add;
 }
 
 
@@ -105,7 +109,7 @@ void undo()
 	{
 		assert(undo_cnt);
 		ud = &undo_list[undo_cnt-1];
-		mem_cursor = ud->mem_pos;
+		mem_cursor = mem_start + ud->pos;
 		switch(ud->type)
 		{
 		case UNDO_CHAR:
@@ -117,18 +121,18 @@ void undo()
 			ud->prev_str = NULL;
 			break;
 		case UNDO_INSERT:
-			deleteAtCursorPos(0);
+			deleteAtCursorPos(0,1);
 			break;
 		case UNDO_DELETE:
-			insertAtCursorPos(ud->prev_char,0);
+			insertAtCursorPos(ud->prev_char,0,0);
 			break;
 		default:
 			assert(0);
 		}
 		flags.cur_hex_right = ud->cur_hex_right;
 		--undo_cnt;
-		++cnt;
 	} while(!ud->seq_start);
+	++cnt;
 
 	if (flags.retain_preundo_pos)
 	{
@@ -136,11 +140,11 @@ void undo()
 		if (mem_cursor > mem_end) mem_cursor = mem_end;
 	}
 
+	/* Sets mem_pane_end */
+	drawMain();
 	if (mem_cursor < mem_pane_start || mem_cursor > mem_pane_end)
 		setPaneStart(mem_cursor);
 
 	total_undos += cnt;
 	--user_undo_cnt;
-	cmd_state = STATE_UPDATE_COUNT;
-	change_cnt = cnt;
 }

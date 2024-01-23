@@ -24,8 +24,7 @@ void syserrprintf(char *func)
 
 
 
-/*** Print a string in colour if it has embedded colour commands. Taken
-     from Nine Mens Morris with some updates. ***/
+/*** Print a string in colour if it has embedded colour commands ***/
 void colprintf(const char *fmt, ...)
 {
 	/* Static so we don't keep allocing and deleting memory each time the
