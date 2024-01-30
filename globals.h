@@ -17,10 +17,11 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 
 #include "build_date.h"
 
-#define VERSION "20240123"
+#define VERSION "20240130"
 
 #define RC_FILENAME     ".hexedrc"
 #define DEF_TERM_WIDTH  80
@@ -155,6 +156,7 @@ struct st_flags
 	unsigned search_wrapped  : 1;
 	unsigned fixed_term_size : 1;
 	unsigned clear_no_undo   : 1;
+	unsigned net_byte_order  : 1;
 };
 
 typedef struct

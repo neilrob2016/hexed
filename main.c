@@ -49,6 +49,9 @@ void init()
 	sr_state = SR_STATE_NONE;
 	sr_cnt = 0;
 
+	/* Check if system byte order is network byte order */
+	if (htons(0x1234) == 0x1234) flags.net_byte_order = 1;
+
 	resetCommand();
 	initKeyboard();
 	initSignals();

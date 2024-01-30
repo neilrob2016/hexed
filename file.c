@@ -335,9 +335,9 @@ u_char *findSearchText(u_char *start)
 	last = mem_end - search_text_len + 1;
 	if (last < mem_start) return NULL;
 
-	flags.search_wrapped = 0;
 	mem_search_find_start = NULL;
 	mem_search_find_end = NULL;
+	flags.search_wrapped = 0;
 	fptr = flags.search_ign_case ? memcasecmp : memcmp;
 
 	/* Search from current cursor position and wrap around */
@@ -479,6 +479,7 @@ void searchAndReplace()
 	u_char *ptr;
 	u_char *search_start;
 	u_char *old_mem_start;
+	int (*fptr)(const void *s1, const void *s2, size_t len);
 	int undo_seq_start;
 	int diff = 0;
 	int i;
@@ -531,10 +532,12 @@ void searchAndReplace()
 	default:
 		assert(0);
 	}
+	
+	fptr = flags.search_ign_case ? memcasecmp : memcmp;
 
 	/* The search string and replace strings must differ */
 	if (replace_text_len == search_text_len &&
-	    !memcmp(search_text,replace_text,replace_text_len))
+	    !(*fptr)(search_text,replace_text,replace_text_len))
 	{
 		resetCommand();
 		cmd_state = STATE_ERR_MUST_DIFFER;
@@ -543,7 +546,6 @@ void searchAndReplace()
 
 	/* We've got our search and replace text so lets do some replacing */
 	undo_seq_start = 1;
-	flags.search_ign_case = 0;
 
 	for(search_start=mem_cursor;
 	    (ptr = findSearchText(search_start));++sr_cnt)

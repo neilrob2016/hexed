@@ -366,14 +366,20 @@ void drawCmdPane()
 			switch(sr_state)
 			{
 			case SR_STATE_TEXT1:
-				colprintf("~FW~BB*** Text search and replace ***\n");
+				if (flags.search_ign_case)
+					colprintf("~FW~BB*** Case insensitive text search and replace ***\n");
+				else
+					colprintf("~FW~BB*** Text search and replace ***\n");
 				colprintf("~FMOld text:~RS %s\n",cmd_text);
 				cmd_x += 10;
 				locate(cmd_x,++cmd_y);
 				break;
 
 			case SR_STATE_TEXT2:
-				colprintf("~FW~BB*** Text search and replace ***\n");
+				if (flags.search_ign_case)
+					colprintf("~FW~BB*** Case insensitive text search and replace ***\n");
+				else
+					colprintf("~FW~BB*** Text search and replace ***\n");
 				colprintf("~FMOld text:~RS %s\n",search_text);
 				colprintf("~FYNew text:~RS %s",cmd_text);
 				cmd_y += 2;
@@ -667,7 +673,8 @@ void drawDecodeView()
 		colprintf("~FTS64 reverse :~RS %lld\n",(uint64_t)l1);
 
 	locate(0,term_textbox_y+5);
-	colprintf("~FGsys~RS = system byte order, ~FTrev~RS = reverse order. ~FGPress 'D' for next...~RS");
+	colprintf("%s = network byte order. ~FGPress 'D' for next...~RS",
+		flags.net_byte_order ? "System" : "Reverse");
 }
 
 
@@ -753,8 +760,8 @@ void drawHelp()
 
 	case HELP_COM_2:
 		colprintf("~BM~FW*** Commands page 2 ***\n\n");
-		colprintf("~FTS:~RS Save file  ~FTT:~RS Text search  ~FTV:~RS Version  ~FTX:~RS Hex search\n");
-		colprintf("~FTY:~RS Text search & replace      ~FTZ:~RS Hex search & replace\n\n");
+		colprintf("~FTS:~RS Save file   ~FTT:~RS Text search  ~FTV:~RS Version  ~FTW:~RS Case insensitive text S&R\n");
+		colprintf("~FTX:~RS Hex search  ~FTY:~RS Text search & replace    ~FTZ:~RS Hex search & replace\n\n");
 		colprintf("~FGPress 'H' again for function keys...~RS");
 		break;
 

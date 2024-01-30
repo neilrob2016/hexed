@@ -480,14 +480,16 @@ void stateCmd(u_char c)
 		undo();
 		drawMain();
 		break;
+	case 'V':
+		break;
 	case 'X':
 		flags.search_ign_case = 0;
 		cmd_state = STATE_TEXT;
 		break;
-	case 'V':
-		break;
+	case 'W':
 	case 'Y':
 	case 'Z':
+		flags.search_ign_case = (user_cmd == 'W');
 		sr_cnt = 0;
 		cmd_state = STATE_TEXT;
 		drawBanner(BAN_LINE4);
@@ -577,6 +579,7 @@ int stateText(u_char c)
 		break;
 	case 'I':
 	case 'T':
+	case 'W':
 	case 'Y':
 		cmd_text[cmd_text_len++] = (char)c;
 		do_write = 1;

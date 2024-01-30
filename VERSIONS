@@ -78,3 +78,9 @@
 - Fixed S&R input sanity checker bug whereby it would say 2 strings were the
   same if they we different lengths but the replacement string was a subset.
 - Fixed undo location position colouring bug following insert/delete locations.
+
+
+20240130
+========
+- Added case insensitive text search and replace via new 'W' command.
+- Minor command panel updates.
