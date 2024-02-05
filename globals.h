@@ -21,7 +21,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20240130"
+#define VERSION "20240205"
 
 #define RC_FILENAME     ".hexedrc"
 #define DEF_TERM_WIDTH  80
@@ -128,6 +128,14 @@ enum
 };
 
 
+enum
+{
+	SYS,
+	REV,
+	NUM_ENDIANS
+};
+
+
 struct st_flags
 {
 	/* Cmd line */
@@ -156,7 +164,6 @@ struct st_flags
 	unsigned search_wrapped  : 1;
 	unsigned fixed_term_size : 1;
 	unsigned clear_no_undo   : 1;
-	unsigned net_byte_order  : 1;
 };
 
 typedef struct
@@ -225,6 +232,7 @@ EXTERN u_char replace_text[CMD_TEXT_SIZE+1];
 EXTERN char cmd_text[CMD_TEXT_SIZE+1];
 EXTERN char user_cmd;
 EXTERN char *home_dir;
+EXTERN char *endian[NUM_ENDIANS];
 EXTERN time_t esc_time;
 
 /* keyboard.c */

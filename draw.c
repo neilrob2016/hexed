@@ -583,43 +583,46 @@ void drawDecodeView()
 	p1 = (u_char *)&s1;
 	p2 = (u_char *)&s2;
 
-	/* Do 16 bit first. We don't know if the system we're on is big endian
-	   or little endian so just call them sys and rev */
+	/* 16 bit */
 	memcpy(p1,mem_cursor,2);
 	locate(0,term_textbox_y+1);
 	if (decode_page)
-		colprintf("~FGU16 system :~RS %u\n",s1);
+		colprintf("~FGU16 %s:~RS %u\n",endian[SYS],s1);
 	else
-		colprintf("~FGS16 system :~RS %d\n",(int16_t)s1);
+		colprintf("~FGS16 %s:~RS %d\n",endian[SYS],(int16_t)s1);
 
-	/* Can't use ntoh*() functions because they don't always
-	   do anything depending on the architecture */
+	/* Can't use ntoh*() functions because they won't do anything on big
+	   endian architecture */
 	s2 = s1;
 	p1[0] = p2[1];
 	p1[1] = p2[0];
 	if (decode_page)
-		colprintf("~FTU16 reverse:~RS %u\n",s1);
+		colprintf("~FTU16 %s:~RS %u\n",endian[REV],s1);
 	else
-		colprintf("~FTS16 reverse:~RS %d\n",(int16_t)s1);
+		colprintf("~FTS16 %s:~RS %d\n",endian[REV],(int16_t)s1);
+
+	locate(0,term_textbox_y+5);
+	colprintf("System = %s endian. ~FGPress 'D' for next...~RS",endian[0]);
 
 	if (len < 4) return;
 
+	locate(0,term_textbox_y+3);
 	p1 = (u_char *)&i1;
 	p2 = (u_char *)&i2;
 
 	/* 32 bit system byte order. */
 	memcpy(p1,mem_cursor,4);
 	if (decode_page)
-		colprintf("~FGU32 system :~RS %u\n",i1);
+		colprintf("~FGU32 %s:~RS %u\n",endian[SYS],i1);
 	else
-		colprintf("~FGS32 system :~RS %d\n",(int32_t)i1);
+		colprintf("~FGS32 %s:~RS %d\n",endian[SYS],(int32_t)i1);
 
 	if (decode_page)
 	{
 		/* U32 date system order */
 		locate(DEC_COL2_X,term_textbox_y+3);
 		t = (time_t)i1;
-		colprintf("~FGU32 date sys:~RS ",t);
+		colprintf("~FGU32 date %s:~RS ",endian[SYS]);
 		if ((tms = gmtime(&t)))
 		{
 			strftime(text,sizeof(text),"%F %T UTC",tms);
@@ -633,15 +636,15 @@ void drawDecodeView()
 	i2 = i1;
 	for(i=0;i < 4;++i) p1[i] = p2[3-i];
 	if (decode_page)
-		colprintf("~FTU32 reverse:~RS %u\n",i1);
+		colprintf("~FTU32 %s:~RS %u\n",endian[REV],i1);
 	else
-		colprintf("~FTS32 reverse:~RS %d\n",(int32_t)i1);
+		colprintf("~FTS32 %s:~RS %d\n",endian[REV],(int32_t)i1);
 
 	if (decode_page)
 	{
 		/* U32 date reverse order */
 		locate(DEC_COL2_X,term_textbox_y+4);
-		colprintf("~FTU32 date rev:~RS ");
+		colprintf("~FTU32 date %s:~RS ",endian[REV]);
 		t = (time_t)i1;
 		if ((tms = gmtime(&t)))
 		{
@@ -659,22 +662,18 @@ void drawDecodeView()
 	memcpy(p1,mem_cursor,8);
 	locate(DEC_COL2_X,term_textbox_y+1);
 	if (decode_page)
-		colprintf("~FGU64 system  :~RS %llu\n",l1);
+		colprintf("~FGU64 %s     :~RS %llu\n",endian[SYS],l1);
 	else
-		colprintf("~FGS64 system  :~RS %lld\n",(uint64_t)l1);
+		colprintf("~FGS64 %s     :~RS %lld\n",endian[SYS],(uint64_t)l1);
 
 	/* 64 bit reverse */
 	l2 = l1;
 	for(i=0;i < 8;++i) p1[i] = p2[7-i];
 	locate(DEC_COL2_X,term_textbox_y+2);
 	if (decode_page)
-		colprintf("~FTU64 reverse :~RS %llu\n",l1);
+		colprintf("~FTU64 %s     :~RS %llu\n",endian[REV],l1);
 	else
-		colprintf("~FTS64 reverse :~RS %lld\n",(uint64_t)l1);
-
-	locate(0,term_textbox_y+5);
-	colprintf("%s = network byte order. ~FGPress 'D' for next...~RS",
-		flags.net_byte_order ? "System" : "Reverse");
+		colprintf("~FTS64 %s     :~RS %lld\n",endian[REV],(uint64_t)l1);
 }
 
 

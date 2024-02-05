@@ -84,3 +84,10 @@
 ========
 - Added case insensitive text search and replace via new 'W' command.
 - Minor command panel updates.
+
+
+20240205
+========
+- Changed the slightly confusing "system" and "reverse" to "big" and "little" 
+  endian in the data decode page (depending on which one the system is).
+- Minor bug fix in same page.
