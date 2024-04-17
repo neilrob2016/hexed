@@ -148,7 +148,7 @@ void colprintf(const char *fmt, ...)
 
 
 
-void printok()
+void printok(void)
 {
         colprintf("~FGOK\n");
 }

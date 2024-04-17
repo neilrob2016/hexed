@@ -5,7 +5,7 @@
 
 /*** This would use memory mapping except that is awkward when you want to
      insert data into the file and enlarge it ***/
-void mapFile()
+void mapFile(void)
 {
 	u_char *ptr;
 	u_long dist;
@@ -394,7 +394,7 @@ void hexToBinary(u_char *data, int *data_len)
 
 
 
-void findText()
+void findText(void)
 {
 	u_char *ptr;
 	u_char *mem_prev;
@@ -474,7 +474,7 @@ void findText()
 
 
 /*** This code is a little bit hairy ***/
-void searchAndReplace()
+void searchAndReplace(void)
 {
 	u_char *ptr;
 	u_char *search_start;

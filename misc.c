@@ -1,6 +1,6 @@
 #include "globals.h"
 
-void clearCommandText()
+void clearCommandText(void)
 {
 	cmd_text[0] = 0;
 	cmd_text_len = 0;
@@ -10,7 +10,7 @@ void clearCommandText()
 
 
 
-void resetCommand()
+void resetCommand(void)
 {
 	clearCommandText();
 	prev_cmd_state = cmd_state = STATE_CMD;
@@ -27,7 +27,7 @@ void resetCommand()
 
 
 
-void version()
+void version(void)
 {
         colprintf("~BM~FW*** HEXED ***\n\n");
         colprintf("~FTCopyright (C) Neil Robertson 2022-2024\n\n");

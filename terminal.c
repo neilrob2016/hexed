@@ -1,6 +1,6 @@
 #include "globals.h"
 
-void getTermType()
+void getTermType(void)
 {
 	char *term = getenv("TERM");
 
@@ -14,7 +14,7 @@ void getTermType()
 
 
 
-void getTermSize()
+void getTermSize(void)
 {
 	struct winsize ws;
 
@@ -49,7 +49,7 @@ void getTermSize()
 
 
 
-void clearScreen()
+void clearScreen(void)
 {
 	/* [H makes the cursor go to home, ie 1,1 (or 0,0 using our co-ords) */
 	write(STDOUT_FILENO,"\033[2J\033[H",7);
@@ -158,7 +158,7 @@ void setCursorType(int type)
 
 
 
-void scrollUp()
+void scrollUp(void)
 {
 	mem_pane_start -= term_pane_cols;
 	if (mem_pane_start < mem_start) mem_pane_start = mem_start;
@@ -169,7 +169,7 @@ void scrollUp()
 
 
 
-void scrollDown()
+void scrollDown(void)
 {
 	mem_pane_start += term_pane_cols;
 	if (mem_pane_start > mem_end) mem_pane_start = mem_end;
@@ -180,7 +180,7 @@ void scrollDown()
 
 
 
-void pageUp()
+void pageUp(void)
 {
 	int cnt;
 	int offset;
@@ -210,7 +210,7 @@ void pageUp()
 
 
 
-void pageDown()
+void pageDown(void)
 {
 	int cnt;
 	int offset;

@@ -2,7 +2,7 @@
 
 void parseLine(char *line, int linenum);
 
-void parseRCFile()
+void parseRCFile(void)
 {
 	FILE *fp;
 	char text[PATH_MAX];

@@ -4,25 +4,25 @@
 #define TAB       9
 #define ESC       27
 
-void quit();
-void switchPane();
-void cursorUp();
-void cursorDown();
-void cursorLeft();
-void cursorRight();
+void quit(void);
+void switchPane(void);
+void cursorUp(void);
+void cursorDown(void);
+void cursorLeft(void);
+void cursorRight(void);
 
 void runCommand(u_char c);
 void stateCmd(u_char c);
 int  stateText(u_char c);
 void stateYN(u_char c);
-void findText();
+void findText(void);
 void setCommandText(char *str);
-void setDecodeView();
-void toggleMode();
+void setDecodeView(void);
+void toggleMode(void);
 
 
 
-void initKeyboard()
+void initKeyboard(void)
 {
 	struct termios tio;
 
@@ -55,7 +55,7 @@ void initKeyboard()
 
 
 
-void readKeyboard()
+void readKeyboard(void)
 {
 	/* Keyboard escape sequences */
 	enum
@@ -286,7 +286,7 @@ void readKeyboard()
 
 /****************************** Key functions ******************************/
 
-void quit()
+void quit(void)
 {
 	locate(0,term_textbox_y+2);
 	colprintf("~BR~FW*** EXIT ***\n");
@@ -295,7 +295,7 @@ void quit()
 
 
 
-void switchPane()
+void switchPane(void)
 {
 	term_pane = (term_pane + 1) % NUM_PANES;
 	drawBanner(BAN_LINE3);
@@ -305,7 +305,7 @@ void switchPane()
 
 
 
-void cursorUp()
+void cursorUp(void)
 {
 	/* If we're already on the top line don't go to the very start */
 	if (mem_cursor - mem_start >= term_pane_cols)
@@ -321,7 +321,7 @@ void cursorUp()
 
 
 
-void cursorDown()
+void cursorDown(void)
 {
 	mem_cursor += term_pane_cols;
 	if (mem_cursor > mem_end) mem_cursor = mem_end;
@@ -332,7 +332,7 @@ void cursorDown()
 
 
 
-void cursorLeft()
+void cursorLeft(void)
 {
 	if (term_pane == PANE_HEX && flags.cur_hex_right)
 	{
@@ -355,7 +355,7 @@ void cursorLeft()
 
 
 
-void cursorRight()
+void cursorRight(void)
 {
 	if (term_pane == PANE_HEX && !flags.cur_hex_right)
 	{
@@ -676,7 +676,7 @@ void setCommandText(char *str)
 
 
 
-void setDecodeView()
+void setDecodeView(void)
 {
 	if ((u_long)(mem_end - mem_cursor) < 1)
 	{
@@ -692,7 +692,7 @@ void setDecodeView()
 
 
 
-void toggleMode()
+void toggleMode(void)
 {
 	flags.insert_mode = !flags.insert_mode;
 	drawBanner(BAN_LINE3);

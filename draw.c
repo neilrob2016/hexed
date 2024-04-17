@@ -6,13 +6,13 @@
 
 #define PROMPT "Command or TAB ('H' for help): "
 
-void drawDecodeView();
-void drawFileInfo();
-void drawHelp();
-void drawHorizontalLines();
+void drawDecodeView(void);
+void drawFileInfo(void);
+void drawHelp(void);
+void drawHorizontalLines(void);
 
 
-void drawMain()
+void drawMain(void)
 {
 	u_char *line_start;
 	u_char *mem_decode_end;
@@ -261,7 +261,7 @@ int drawBanner(int line_flags)
 
 
 
-void drawCmdPane()
+void drawCmdPane(void)
 {
 	int set_cursor_pos = 1;
 	int i;
@@ -477,7 +477,7 @@ void drawCmdPane()
 
 /*** Can't put inline in drawMain() as its called from file.c and is too
      complicated anyway ***/
-void drawUndoList()
+void drawUndoList(void)
 {
 	/* Oldest to newest change */
 	char *undo_col[MAX_UNDO_COL] =
@@ -556,7 +556,7 @@ void drawUndoList()
 
 
 
-void drawDecodeView()
+void drawDecodeView(void)
 {
 	struct tm *tms;
 	uint16_t s1;
@@ -681,7 +681,7 @@ void drawDecodeView()
 
 /*** Draw the lines dividing the data panes from the banner and command 
      panes ***/
-void drawHorizontalLines()
+void drawHorizontalLines(void)
 {
 	int div_y;
 	int cols;
@@ -730,7 +730,7 @@ void drawHorizontalLines()
 
 
 
-void drawFileInfo()
+void drawFileInfo(void)
 {
 	colprintf("~BM~FW*** File information ***\n");
 	colprintf("~FYOriginal size:~RS %lu bytes\n",file_stat.st_size);
@@ -745,7 +745,7 @@ void drawFileInfo()
 
 
 
-void drawHelp()
+void drawHelp(void)
 {
 	switch(help_page)
 	{

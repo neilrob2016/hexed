@@ -2,7 +2,7 @@
 
 #define UNDO_MALLOC_INC 5
 
-void initUndo()
+void initUndo(void)
 {
 	undo_cnt = 0;
 	undo_malloc_cnt = 0;
@@ -85,7 +85,7 @@ void updateUndoPositions(int add)
 
 
 
-void undo()
+void undo(void)
 {
 	st_undo *ud;
 	size_t diff;

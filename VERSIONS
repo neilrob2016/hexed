@@ -91,3 +91,9 @@
 - Changed the slightly confusing "system" and "reverse" to "big" and "little" 
   endian in the data decode page (depending on which one the system is).
 - Minor bug fix in same page.
+
+
+20240417
+========
+- Minor update to change <func>() to <func>(void) to stop endless warnings from
+  newer versions of clang.

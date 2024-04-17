@@ -12,7 +12,7 @@ void sighandler(int sig)
 
 
 
-void initSignals()
+void initSignals(void)
 {
 	signal(SIGINT,sighandler);
 	signal(SIGQUIT,sighandler);

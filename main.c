@@ -8,10 +8,10 @@
 #define MAINFILE
 #include "globals.h"
 
-void init();
+void init(void);
 void parseCmdLine(int argc, char **argv);
-void versionExit();
-void mainloop();
+void versionExit(void);
+void mainloop(void);
 
 
 int main(int argc, char **argv)
@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 
 
 
-void init()
+void init(void)
 {
 	mem_start = NULL;
 	mem_end = NULL;
@@ -178,7 +178,7 @@ void parseCmdLine(int argc, char **argv)
 
 
 
-void versionExit()
+void versionExit(void)
 {
 	putchar('\n');
 	version();
@@ -189,7 +189,7 @@ void versionExit()
 
 
 
-void mainloop()
+void mainloop(void)
 {
 	fd_set mask;
 

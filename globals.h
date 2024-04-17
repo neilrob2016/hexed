@@ -21,7 +21,7 @@
 
 #include "build_date.h"
 
-#define VERSION "20240205"
+#define VERSION "20240417"
 
 #define RC_FILENAME     ".hexedrc"
 #define DEF_TERM_WIDTH  80
@@ -236,11 +236,11 @@ EXTERN char *endian[NUM_ENDIANS];
 EXTERN time_t esc_time;
 
 /* keyboard.c */
-void initKeyboard();
-void readKeyboard();
+void initKeyboard(void);
+void readKeyboard(void);
 
 /* signals.c */
-void initSignals();
+void initSignals(void);
 
 /* parse.c */
 void parseTerminalSize(char *str, int linenum);
@@ -249,53 +249,53 @@ void parseCursorType(char *type, int linenum);
 void parseSubChar(char *val, int linenum);
 
 /* terminal.c */
-void getTermType();
-void getTermSize();
-void clearScreen();
+void getTermType(void);
+void getTermSize(void);
+void clearScreen(void);
 void clearLine(int y);
 void locate(int x, int y);
 void setPaneStart(u_char *mem_pos);
 void positionCursor(int draw_line1);
 void setCursorType(int type);
-void scrollUp();
-void scrollDown();
-void pageUp();
-void pageDown();
+void scrollUp(void);
+void scrollDown(void);
+void pageUp(void);
+void pageDown(void);
 
 /* draw.c */
-void drawMain();
+void drawMain(void);
 int  drawBanner(int line_flags);
-void drawCmdPane();
-void drawUndoList();
-void drawDataView();
+void drawCmdPane(void);
+void drawUndoList(void);
+void drawDataView(void);
 
 /* file.c */
-void mapFile();
+void mapFile(void);
 void setFileName(char *name);
 int  saveFile(char *name);
 void changeFileData(u_char c);
 void insertAtCursorPos(u_char c, int add_undo, int seq_start);
 void deleteAtCursorPos(int add_undo, int seq_start);
-void findText();
-void searchAndReplace();
+void findText(void);
+void searchAndReplace(void);
 
 /* rcfile.c */
-void parseRCFile();
+void parseRCFile(void);
 
 /* undo.c */
-void initUndo();
+void initUndo(void);
 void addUndo(int type, u_char *ptr, int str_len, int seq_start);
-void undo();
+void undo(void);
 void updateUndoPositions(int add);
 
 /* printf.c */
 void errprintf(const char *fmt, ...);
 void syserrprintf(char *func);
 void colprintf(const char *fmt, ...);
-void printok();
+void printok(void);
 
 /* misc.c */
-void clearCommandText();
-void resetCommand();
-void version();
+void clearCommandText(void);
+void resetCommand(void);
+void version(void);
 void doExit(int code);
